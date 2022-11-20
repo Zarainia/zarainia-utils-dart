@@ -719,6 +719,7 @@ class SimplerChip extends StatelessWidget {
                 iconSize: 18,
                 constraints: const BoxConstraints(),
                 padding: EdgeInsets.zero,
+                tooltip: "Delete",
               ),
               right: 6,
               width: 21,

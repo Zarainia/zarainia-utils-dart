@@ -53,6 +53,7 @@ class MultiFilterRow<T> extends StatelessWidget {
         onPressed: () {
           cubit_update_function({});
         },
+        tooltip: "Clear",
       ),
     );
   }

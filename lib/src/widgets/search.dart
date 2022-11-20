@@ -55,6 +55,7 @@ class _SearchFieldState extends State<SearchField> {
             controller.text = "";
             widget.on_search("");
           },
+          tooltip: "Clear",
         ),
       ),
       // decoration: InputDecoration(hintText: widget.hint, border: InputBorder.none, focusedBorder: InputBorder.none),
