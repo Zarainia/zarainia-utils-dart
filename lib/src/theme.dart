@@ -59,6 +59,7 @@ class ZarainiaTheme {
   Color ON_PRIMARY_DIM_BORDER_COLOUR = Colors.black;
   Color BRIGHTER_BORDER_COLOUR = Colors.black;
   Color ERROR_BORDER_COLOUR = Colors.black;
+  Color BRIGHTER_ERROR_BORDER_COLOUR = Colors.black;
 
   Color BACKGROUND_CONTRAST_COLOUR = Colors.black;
   Color BASE_TEXT_COLOUR = Colors.black;
@@ -222,6 +223,9 @@ class ZarainiaTheme {
     ON_PRIMARY_BORDER_COLOUR = ON_PRIMARY_DIVIDER_COLOUR;
     ON_PRIMARY_DIM_BORDER_COLOUR = Color.lerp(PRIMARY_CONTRAST_COLOUR, null, 0.7)!;
     ERROR_BORDER_COLOUR = Colors.red;
+    if (colour_distance(ERROR_BORDER_COLOUR, BASE_BACKGROUND_COLOUR) < 250 && colour_distance(Colors.yellow, BASE_BACKGROUND_COLOUR) > 100) ERROR_BORDER_COLOUR = Colors.yellow;
+    BRIGHTER_ERROR_BORDER_COLOUR = Color.lerp(ERROR_BORDER_COLOUR, BASE_TEXT_COLOUR, 0.3)!;
+    ERROR_BORDER_COLOUR = Color.lerp(ERROR_BORDER_COLOUR, null, 0.3)!;
 
     PRIMARY_TEXT_COLOUR_LIGHT = make_text_colour(PRIMARY_COLOUR, Brightness.light);
     PRIMARY_TEXT_COLOUR_DARK = make_text_colour(PRIMARY_COLOUR, Brightness.dark);
@@ -230,8 +234,8 @@ class ZarainiaTheme {
     TEXT_ON_PRIMARY_COLOUR = PRIMARY_CONTRAST_COLOUR;
     DIM_TEXT_ON_PRIMARY_COLOUR = dim_text_colour(TEXT_ON_PRIMARY_COLOUR);
 
-    ERROR_TEXT_COLOUR = Colors.red;
-    if (colour_distance(ERROR_TEXT_COLOUR, BASE_BACKGROUND_COLOUR) < 150) ERROR_TEXT_COLOUR = Color.lerp(ERROR_TEXT_COLOUR, BASE_TEXT_COLOUR, 0.5)!;
+    // if (colour_distance(ERROR_TEXT_COLOUR, BASE_BACKGROUND_COLOUR) < 150) ERROR_TEXT_COLOUR = Color.lerp(ERROR_TEXT_COLOUR, BASE_TEXT_COLOUR, 0.5)!;
+    ERROR_TEXT_COLOUR = BRIGHTER_ERROR_BORDER_COLOUR;
 
     CLOSE_ICON_BUTTON_COLOUR = SHADOWED_BACKGROUND_COLOUR;
 
@@ -257,7 +261,7 @@ class ZarainiaTheme {
     // TITLE_STYLE = text_theme.headline3!;
     TITLE_STYLE = text_theme.bodyText1!.copyWith(fontSize: 20);
     SUBTITLE_STYLE = text_theme.subtitle1!.copyWith(fontSize: 12, color: BASE_TEXT_COLOUR);
-    PROPERTY_VALUE_STYLE = text_theme.subtitle1!;
+    PROPERTY_VALUE_STYLE = text_theme.subtitle1!.copyWith(fontWeight: FontWeight.normal);
     PROPERTY_LABEL_STYLE = PROPERTY_VALUE_STYLE.copyWith(fontWeight: FontWeight.bold);
     SMALL_HEADER_STYLE = text_theme.headline5!.copyWith(fontSize: 28);
     SMALLER_HEADER_STYLE = text_theme.headline6!.copyWith(fontSize: 19);
@@ -344,6 +348,7 @@ class ZarainiaTheme {
       primaryColor: PRIMARY_COLOUR,
       focusColor: ACCENT_COLOUR,
       toggleableActiveColor: ACCENT_COLOUR,
+      hoverColor: DIM_BACKGROUND,
       colorScheme: default_theme.colorScheme.copyWith(
         primary: PRIMARY_COLOUR,
         onPrimary: PRIMARY_CONTRAST_COLOUR,
@@ -379,6 +384,7 @@ class ZarainiaTheme {
       textTheme: text_theme,
       chipTheme: ChipThemeData(backgroundColor: PRIMARY_COLOUR, brightness: PRIMARY_COLOUR_BRIGHTNESS),
       floatingActionButtonTheme: FloatingActionButtonThemeData(backgroundColor: PRIMARY_COLOUR, foregroundColor: PRIMARY_CONTRAST_COLOUR),
+      iconTheme: IconThemeData(color: ICON_COLOUR),
     );
 
     overlay_style = SystemUiOverlayStyle(statusBarColor: PRIMARY_COLOUR, statusBarBrightness: PRIMARY_COLOUR_BRIGHTNESS);

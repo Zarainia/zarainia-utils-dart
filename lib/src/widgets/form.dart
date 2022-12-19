@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:collection/collection.dart' hide Tuple2;
 import 'package:measured_size/measured_size.dart';
@@ -8,6 +9,48 @@ import 'package:measured_size/measured_size.dart';
 import 'package:zarainia_utils/src/inkwell.dart';
 import 'package:zarainia_utils/src/theme.dart';
 import 'package:zarainia_utils/src/tuple.dart';
+
+class RegexInputFormatter implements TextInputFormatter {
+  final RegExp regex;
+
+  RegexInputFormatter(this.regex);
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue old_value, TextEditingValue new_value) {
+    final old_valid = _is_valid(old_value.text);
+    final new_valid = _is_valid(new_value.text);
+    if (old_valid && !new_valid) {
+      return old_value;
+    }
+    return new_value;
+  }
+
+  bool _is_valid(String value) {
+    try {
+      final matches = regex.allMatches(value);
+      for (Match match in matches) {
+        if (match.start == 0 && match.end == value.length) {
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      // Invalid regex
+      assert(false, e.toString());
+      return true;
+    }
+  }
+}
+
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue old_value, TextEditingValue new_value) {
+    return TextEditingValue(
+      text: new_value.text.toUpperCase(),
+      selection: new_value.selection,
+    );
+  }
+}
 
 class LabeledCheckbox extends StatelessWidget {
   bool value;
@@ -109,6 +152,7 @@ class OptionEntryItemWrapper<T> extends StatefulWidget {
   Color? Function(T value)? focus_colour_getter;
   bool is_first;
   bool is_last;
+  bool add_shadow;
 
   OptionEntryItemWrapper({
     required this.value,
@@ -118,6 +162,7 @@ class OptionEntryItemWrapper<T> extends StatefulWidget {
     this.focus_colour_getter,
     this.is_first = false,
     this.is_last = false,
+    this.add_shadow = false,
   });
 
   @override
@@ -194,6 +239,7 @@ class _OptionEntryItemWrapperState<T> extends State<OptionEntryItemWrapper<T>> {
                     ),
                   ),
                   color: background_colour,
+                  elevation: widget.add_shadow ? 8 : 0,
                 ),
                 color: background_colour,
               ),
@@ -211,7 +257,7 @@ class _OptionEntryItemWrapperState<T> extends State<OptionEntryItemWrapper<T>> {
   }
 }
 
-List<DropdownMenuItem<T>> simple_menu_items<T>(BuildContext context, Iterable<Tuple2<T, String>> options) {
+List<DropdownMenuItem<T>> simple_menu_items<T>(BuildContext context, Iterable<Tuple2<T, String>> options, {TextStyle? style, Color? focus_colour}) {
   return options
       .mapIndexed(
         (i, e) => DropdownMenuItem(
@@ -219,21 +265,22 @@ List<DropdownMenuItem<T>> simple_menu_items<T>(BuildContext context, Iterable<Tu
           child: OptionEntryItemWrapper(
             value: e.element1,
             theme_colours: get_zarainia_theme(context),
-            builder: (context, focused) => Text(e.element2),
+            builder: (context, focused) => Text(e.element2, style: style),
             is_first: i == 0,
             is_last: i == options.length - 1,
+            focus_colour_getter: focus_colour != null ? (_) => focus_colour : null,
           ),
         ),
       )
       .toList();
 }
 
-List<DropdownMenuItem<T>> simple_entry_menu_items<T>(BuildContext context, Iterable<MapEntry<T, String>> options) {
-  return simple_menu_items(context, options.map((e) => Tuple2(e.key, e.value.toString())));
+List<DropdownMenuItem<T>> simple_entry_menu_items<T>(BuildContext context, Iterable<MapEntry<T, String>> options, {TextStyle? style, Color? focus_colour}) {
+  return simple_menu_items(context, options.map((e) => Tuple2(e.key, e.value.toString())), style: style, focus_colour: focus_colour);
 }
 
-List<DropdownMenuItem<T>> simpler_menu_items<T>(BuildContext context, Iterable<T> options) {
-  return simple_menu_items(context, options.map((e) => Tuple2(e, e.toString())));
+List<DropdownMenuItem<T>> simpler_menu_items<T>(BuildContext context, Iterable<T> options, {TextStyle? style, Color? focus_colour}) {
+  return simple_menu_items(context, options.map((e) => Tuple2(e, e.toString())), style: style, focus_colour: focus_colour);
 }
 
 List<Widget> Function(BuildContext context) simple_selected_menu_items<T>(Iterable<Tuple2<T, String>> options) {

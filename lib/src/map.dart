@@ -109,3 +109,11 @@ Map<String, T> deepcopy_json_map<T>(Map<String, T> m) {
 List<T> deepcopy_json_list<T>(List<T> l) {
   return (deepcopy_json(l) as List).cast<T>();
 }
+
+Map<V, K> invert_map<K, V>(Map<K, V> map) {
+  return map.map((key, value) => MapEntry(value, key));
+}
+
+extension ZarainiaMapExtension<K, V> on Map<K, V> {
+  Map<V, K> invert() => invert_map(this);
+}
