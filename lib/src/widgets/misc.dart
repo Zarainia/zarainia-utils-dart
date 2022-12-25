@@ -308,7 +308,8 @@ class CircleButton extends StatelessWidget {
   double elevation;
   FocusNode? focus_node;
 
-  CircleButton({required this.icon, required this.onclick, this.background_colour, this.icon_colour, this.icon_size = 24, this.padding = const EdgeInsets.all(8), this.elevation = 0, this.focus_node});
+  CircleButton(
+      {required this.icon, required this.onclick, this.background_colour, this.icon_colour, this.icon_size = 24, this.padding = const EdgeInsets.all(8), this.elevation = 0, this.focus_node});
 
   @override
   Widget build(BuildContext context) {

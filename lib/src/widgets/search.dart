@@ -58,8 +58,7 @@ class _SearchFieldState extends State<SearchField> {
           tooltip: "Clear",
         ),
       ),
-      // decoration: InputDecoration(hintText: widget.hint, border: InputBorder.none, focusedBorder: InputBorder.none),
-      style: widget.style?.copyWith(fontSize: 20),
+      style: widget.style,
     );
   }
 

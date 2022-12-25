@@ -39,7 +39,14 @@ class PopoverContentsWrapper extends StatelessWidget {
       child: Column(
         children: [
           header,
-          Flexible(child: Material(child: body, color: Colors.transparent)),
+          Flexible(
+              child: Material(
+                  child: MediaQuery.removePadding(
+                    context: context,
+                    child: body,
+                    removeTop: true,
+                  ),
+                  color: Colors.transparent)),
         ],
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,

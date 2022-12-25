@@ -19,7 +19,7 @@ Widget highlight_text(BuildContext context, List<Match> matches, String text, {S
 
   TextSpan span = TextSpan(children: highlighted_spans, style: base_style);
   if (selectable)
-    return SelectableText.rich(span);
+    return SelectableText.rich(span, cursorWidth: 0);
   else
     return Text.rich(span);
 }
