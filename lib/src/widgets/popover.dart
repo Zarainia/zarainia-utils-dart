@@ -25,10 +25,10 @@ class PopoverButton extends StatelessWidget {
 }
 
 class PopoverContentsWrapper extends StatelessWidget {
-  Widget header;
-  Widget body;
+  final Widget header;
+  final Widget body;
 
-  PopoverContentsWrapper({required this.header, required this.body});
+  const PopoverContentsWrapper({required this.header, required this.body});
 
   @override
   Widget build(BuildContext context) {
@@ -40,13 +40,15 @@ class PopoverContentsWrapper extends StatelessWidget {
         children: [
           header,
           Flexible(
-              child: Material(
-                  child: MediaQuery.removePadding(
-                    context: context,
-                    child: body,
-                    removeTop: true,
-                  ),
-                  color: Colors.transparent)),
+            child: Material(
+              child: MediaQuery.removePadding(
+                context: context,
+                child: body,
+                removeTop: true,
+              ),
+              color: Colors.transparent,
+            ),
+          ),
         ],
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -58,9 +60,9 @@ class PopoverContentsWrapper extends StatelessWidget {
 }
 
 class PopoverHeader extends StatelessWidget {
-  String title;
+  final String title;
 
-  PopoverHeader({required this.title});
+  const PopoverHeader({required this.title});
 
   @override
   Widget build(BuildContext context) {

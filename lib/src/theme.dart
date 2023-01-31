@@ -100,6 +100,10 @@ class ZarainiaTheme {
   TextStyle HEADER_STRIKETHROUGH_STYLE = const TextStyle();
   TextStyle CHIP_STRIKETHROUGH_STYLE = const TextStyle();
 
+  TextStyle DEFAULT_INPUT_HINT_STYLE = const TextStyle();
+  MaterialStateTextStyle DEFAULT_INPUT_LABEL_STYLE = MaterialStateTextStyle.resolveWith((states) => const TextStyle());
+  MaterialStateTextStyle DEFAULT_INPUT_FLOATING_LABEL_STYLE = MaterialStateTextStyle.resolveWith((states) => const TextStyle());
+
   Color SHADOWED_BACKGROUND_COLOUR = Color.lerp(Colors.black, null, 0.7)!;
   Color SHADOWED_BACKGROUND_TEXT_COLOUR = Colors.white;
   Color CLOSE_ICON_BUTTON_COLOUR = Color.lerp(Colors.black, null, 0.7)!;
@@ -281,6 +285,33 @@ class ZarainiaTheme {
     HEADER_STRIKETHROUGH_STYLE = TITLE_STYLE.copyWith(decoration: TextDecoration.lineThrough, decorationThickness: 2);
     CHIP_STRIKETHROUGH_STYLE = PROPERTY_VALUE_STYLE.copyWith(decoration: TextDecoration.lineThrough, color: DIM_TEXT_COLOUR);
 
+    DEFAULT_INPUT_HINT_STYLE = text_theme.subtitle1!.copyWith(color: default_theme.hintColor);
+    DEFAULT_INPUT_LABEL_STYLE = MaterialStateTextStyle.resolveWith((states) {
+      TextStyle base_style = text_theme.subtitle1!;
+      Color colour;
+      if (states.contains(MaterialState.error))
+        colour = ERROR_TEXT_COLOUR;
+      else if (states.contains(MaterialState.disabled))
+        colour = default_theme.disabledColor;
+      else if (states.contains(MaterialState.focused))
+        colour = ACCENT_TEXT_COLOUR;
+      else
+        colour = default_theme.hintColor;
+      return base_style.copyWith(color: colour);
+    });
+
+    DEFAULT_INPUT_FLOATING_LABEL_STYLE = MaterialStateTextStyle.resolveWith((states) {
+      TextStyle base_style = text_theme.subtitle1!;
+      Color colour;
+      if (states.contains(MaterialState.error))
+        colour = ERROR_TEXT_COLOUR;
+      else if (states.contains(MaterialState.disabled))
+        colour = default_theme.disabledColor;
+      else
+        colour = ACCENT_TEXT_COLOUR;
+      return base_style.copyWith(color: colour);
+    });
+
     // MARKDOWN_BASE_TEXT_COLOUR = BASE_TEXT_COLOUR;
     // MARKDOWN_QUOTE_TEXT_COLOUR = is_dark ? Colors.blue[100]! : Colors.blue[800]!;
     // MARKDOWN_LINE_COLOUR = BRIGHTER_BORDER_COLOUR;
@@ -308,20 +339,20 @@ class ZarainiaTheme {
     // MARKDOWN_HIGHLIGHTING_THEME['root'] = TextStyle(color: MARKDOWN_HIGHLIGHTING_THEME['root']!.color, backgroundColor: Colors.transparent);
 
     ButtonStyle primary_text_button_theme = TextButton.styleFrom(
-      primary: ACCENT_TEXT_COLOUR,
+      foregroundColor: ACCENT_TEXT_COLOUR,
       textStyle: TextStyle(color: ACCENT_TEXT_COLOUR),
       minimumSize: Size.zero,
     );
     ButtonStyle primary_outlined_button_theme = OutlinedButton.styleFrom(
-      primary: ACCENT_TEXT_COLOUR,
+      foregroundColor: ACCENT_TEXT_COLOUR,
       textStyle: TextStyle(color: ACCENT_TEXT_COLOUR),
       minimumSize: Size.zero,
       side: BorderSide(width: 1, color: BORDER_COLOUR),
     );
     ButtonStyle primary_elevated_button_theme = ElevatedButton.styleFrom(
-      primary: ACCENT_COLOUR,
+      backgroundColor: ACCENT_COLOUR,
       minimumSize: Size.zero,
-      onPrimary: ACCENT_CONTRAST_COLOUR,
+      foregroundColor: ACCENT_CONTRAST_COLOUR,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
 
@@ -367,6 +398,7 @@ class ZarainiaTheme {
         prefixStyle: TextStyle(color: ACCENT_TEXT_COLOUR),
         suffixStyle: TextStyle(color: ACCENT_TEXT_COLOUR),
         floatingLabelStyle: TextStyle(color: ACCENT_TEXT_COLOUR),
+        errorStyle: TextStyle(color: ERROR_TEXT_COLOUR),
       ),
       sliderTheme: SliderThemeData.fromPrimaryColors(
         primaryColor: PRIMARY_COLOUR,
@@ -422,14 +454,36 @@ class ZarainiaTheme {
       return Color.lerp(background.contrasting_colour, null, background.brightness == Brightness.dark ? 0.4 : 0.6)!;
   }
 
-  static Widget on_appbar_theme_provider(BuildContext context, Widget Function(BuildContext context) child_builder, {Color? appbar_colour}) {
+  static Widget on_appbar_theme_provider(BuildContext context, Widget Function(BuildContext context) child_builder, {Color? appbar_colour, bool bright_icons = false}) {
     ZarainiaTheme theme_colours = get_zarainia_theme(context);
 
     return theme_colours.provider(
-      builder: (context) => child_builder(context),
+      builder: (context) {
+        ZarainiaTheme theme_colours = get_zarainia_theme(context);
+        Widget child = child_builder(context);
+        if (bright_icons)
+          child = Theme(
+            data: theme_colours.theme.copyWith(
+              iconTheme: IconThemeData(color: theme_colours.BACKGROUND_CONTRAST_COLOUR),
+            ),
+            child: child,
+          );
+        return child;
+      },
       theme: theme_colours.theme_name,
       background_colour: appbar_colour ?? theme_colours.PRIMARY_COLOUR,
       primary_colour: theme_colours.ACCENT_COLOUR,
+      secondary_colour: theme_colours.ACCENT_COLOUR,
+    );
+  }
+
+  static Widget off_appbar_theme_provider(BuildContext context, Widget Function(BuildContext context) child_builder) {
+    ZarainiaTheme theme_colours = get_zarainia_theme(context);
+
+    return theme_colours.provider(
+      builder: child_builder,
+      theme: theme_colours.theme_name,
+      primary_colour: theme_colours.BASE_BACKGROUND_COLOUR,
       secondary_colour: theme_colours.ACCENT_COLOUR,
     );
   }

@@ -46,6 +46,18 @@ class CancelIntent extends DownPropagationIntent {
   const CancelIntent();
 }
 
+class UndoIntent extends DownPropagationIntent {
+  const UndoIntent();
+}
+
+class RedoIntent extends DownPropagationIntent {
+  const RedoIntent();
+}
+
+class SaveFileIntent extends DownPropagationIntent {
+  const SaveFileIntent();
+}
+
 class DownPropagationCubit extends Cubit<Set<Type>> {
   BuildContext context;
   Set<Type> shortcut_intents;

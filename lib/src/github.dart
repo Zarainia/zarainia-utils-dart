@@ -21,4 +21,5 @@ Future<Tuple2<String, String>?> get_latest_asset({String username = "zarainia", 
   } catch (e) {
     log("failed to get asset url", error: e);
   }
+  return null;
 }

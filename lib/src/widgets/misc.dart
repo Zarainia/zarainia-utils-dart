@@ -471,34 +471,33 @@ class ListSubheader extends StatelessWidget {
 }
 
 class ListSubheaderTile extends StatelessWidget {
-  String text;
+  Widget? contents;
+  String? text;
   Color? colour;
 
-  ListSubheaderTile({required this.text, this.colour});
+  ListSubheaderTile({this.contents, this.text, this.colour});
 
   @override
   Widget build(BuildContext context) {
     ZarainiaTheme theme_colours = get_zarainia_theme(context);
 
-    return ZarainiaThemeProvider(
+    return theme_colours.provider(
       theme: theme_colours.theme_name,
       primary_colour: theme_colours.PRIMARY_COLOUR,
       secondary_colour: theme_colours.ACCENT_COLOUR,
       background_colour: colour,
       builder: (context) {
-        return Column(
-          children: [
-            Container(
-              child: Text(
-                text,
+        return Container(
+          child: contents ??
+              Text(
+                text!,
                 style: TextStyle(fontSize: 14),
               ),
-              color: colour,
-              padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            ),
-            const Divider()
-          ],
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          decoration: BoxDecoration(
+            color: colour,
+            border: Border.symmetric(vertical: BorderSide(color: theme_colours.BORDER_COLOUR)),
+          ),
         );
       },
     );
@@ -669,6 +668,7 @@ class IconAndText extends StatelessWidget {
       ],
       crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisAlignment: alignment,
+      mainAxisSize: MainAxisSize.min,
     );
   }
 }

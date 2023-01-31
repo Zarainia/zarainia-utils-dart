@@ -1,296 +1,246 @@
-import 'dart:math';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-import 'package:collection/collection.dart' hide Tuple2;
-import 'package:measured_size/measured_size.dart';
+import 'package:collection/collection.dart';
 
-import 'package:zarainia_utils/src/inkwell.dart';
+import 'package:zarainia_utils/src/constants.dart';
+import 'package:zarainia_utils/src/shortcuts.dart';
 import 'package:zarainia_utils/src/theme.dart';
-import 'package:zarainia_utils/src/tuple.dart';
+import 'dialog.dart';
 
-class RegexInputFormatter implements TextInputFormatter {
-  final RegExp regex;
+typedef StagedEditorBuilder<T> = Widget Function(
+    {required bool editing,
+    required Function() start_editing,
+    required T value,
+    required Function(T) update_value,
+    required Function(List<String>) update_errors,
+    VoidCallback? save,
+    required VoidCallback cancel,
+    required List<String> errors});
 
-  RegexInputFormatter(this.regex);
+class MultiErrorManager extends StatefulWidget {
+  Set<String> widget_ids;
+  Widget Function(Function(String, String?) update_error) builder;
+  Function(List<String>) update_errors;
 
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue old_value, TextEditingValue new_value) {
-    final old_valid = _is_valid(old_value.text);
-    final new_valid = _is_valid(new_value.text);
-    if (old_valid && !new_valid) {
-      return old_value;
-    }
-    return new_value;
-  }
-
-  bool _is_valid(String value) {
-    try {
-      final matches = regex.allMatches(value);
-      for (Match match in matches) {
-        if (match.start == 0 && match.end == value.length) {
-          return true;
-        }
-      }
-      return false;
-    } catch (e) {
-      // Invalid regex
-      assert(false, e.toString());
-      return true;
-    }
-  }
-}
-
-class UpperCaseTextFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue old_value, TextEditingValue new_value) {
-    return TextEditingValue(
-      text: new_value.text.toUpperCase(),
-      selection: new_value.selection,
-    );
-  }
-}
-
-class LabeledCheckbox extends StatelessWidget {
-  bool value;
-  Function(bool?) on_changed;
-  String label;
-  MaterialTapTargetSize? materialTapTargetSize;
-  double? checkbox_width;
-  double? checkbox_height;
-  TextStyle? label_style;
-  double label_spacing;
-  FocusNode? focus_node;
-
-  LabeledCheckbox(
-      {required this.value,
-      required this.on_changed,
-      required this.label,
-      this.materialTapTargetSize,
-      this.checkbox_width,
-      this.checkbox_height,
-      this.label_style,
-      this.label_spacing = 0,
-      this.focus_node});
+  MultiErrorManager({required this.widget_ids, required this.builder, required this.update_errors});
 
   @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      child: Row(
-        children: [
-          SizedBox(
-            child: Checkbox(
-              value: value,
-              onChanged: on_changed,
-              materialTapTargetSize: materialTapTargetSize,
-              focusNode: focus_node,
-            ),
-            width: checkbox_width,
-            height: checkbox_height,
-          ),
-          SizedBox(width: label_spacing),
-          Text(
-            label,
-            style: label_style,
-          ),
-        ],
-      ),
-      onTap: () => on_changed(!value),
-    );
-  }
+  _MultiErrorManagerState createState() => _MultiErrorManagerState();
 }
 
-class LabeledSwitch extends StatelessWidget {
-  bool value;
-  Function(bool?)? on_changed;
-  String label;
-  MaterialTapTargetSize? materialTapTargetSize;
-  TextStyle? label_style;
-  double label_spacing;
-  FocusNode? focus_node;
+class _MultiErrorManagerState extends State<MultiErrorManager> {
+  Map<String, String?> errors = {};
 
-  LabeledSwitch({
-    required this.value,
-    required this.on_changed,
-    required this.label,
-    this.materialTapTargetSize,
-    this.label_style,
-    this.label_spacing = 0,
-    this.focus_node,
-  });
+  void notify_update() {
+    widget.update_errors(errors.values.whereNotNull().toSet().sortedBy((e) => e).toList());
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      child: Row(
-        children: [
-          Switch(
-            value: value,
-            onChanged: on_changed,
-            materialTapTargetSize: materialTapTargetSize,
-            focusNode: focus_node,
-          ),
-          SizedBox(width: label_spacing),
-          Text(
-            label,
-            style: label_style,
-          ),
-          SizedBox(width: 10)
-        ],
-      ),
-      onTap: on_changed == null ? null : () => on_changed!.call(!value),
-    );
-  }
-}
-
-class OptionEntryItemWrapper<T> extends StatefulWidget {
-  T value;
-  ZarainiaTheme theme_colours;
-  Widget Function(BuildContext, bool) builder;
-  Function(T value)? on_focus;
-  Color? Function(T value)? focus_colour_getter;
-  bool is_first;
-  bool is_last;
-  bool add_shadow;
-
-  OptionEntryItemWrapper({
-    required this.value,
-    required this.theme_colours,
-    required this.builder,
-    this.on_focus,
-    this.focus_colour_getter,
-    this.is_first = false,
-    this.is_last = false,
-    this.add_shadow = false,
-  });
-
-  @override
-  _OptionEntryItemWrapperState<T> createState() => _OptionEntryItemWrapperState<T>();
-}
-
-class _OptionEntryItemWrapperState<T> extends State<OptionEntryItemWrapper<T>> {
-  static const double DEFAULT_DROPDOWN_PADDING = 16;
-  static const double TOP_AND_BOTTOM_PADDING = 8;
-
-  bool focused = false;
-  FocusNode? node;
-  double content_height = 0;
-
-  void focus_listener() {
-    if (mounted && node != null) {
+  void didUpdateWidget(covariant MultiErrorManager oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!setEquals(widget.widget_ids, oldWidget.widget_ids)) {
+      Set<String> removed_ids = oldWidget.widget_ids.difference(widget.widget_ids);
       setState(() {
-        focused = node!.hasFocus;
+        for (String id in removed_ids) errors.remove(id);
       });
-      if (focused) widget.on_focus?.call(widget.value);
+      notify_update();
     }
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    node?.removeListener(focus_listener);
-    node = Focus.of(context);
-    node?.addListener(focus_listener);
-  }
-
-  @override
-  void dispose() {
-    node?.removeListener(focus_listener);
-    super.dispose();
+  void update_error(String id, String? error) {
+    setState(() {
+      errors[id] = error;
+    });
+    notify_update();
   }
 
   @override
   Widget build(BuildContext context) {
-    Color background_colour = focused ? (widget.focus_colour_getter?.call(widget.value) ?? widget.theme_colours.ACCENT_COLOUR) : widget.theme_colours.BASE_BACKGROUND_COLOUR;
+    return widget.builder(update_error);
+  }
+}
 
-    return LayoutBuilder(builder: (BuildContext context, BoxConstraints constraints) {
-      double max_height = constraints.maxHeight;
-      if (max_height > 100) max_height = max(kMinInteractiveDimension, content_height);
+class StagedEditor<T> extends StatefulWidget {
+  T initial_value;
+  StagedEditorBuilder<T> editor_builder;
+  Function(T) on_confirm;
+  Function(T)? on_cancel;
+  bool initially_editing;
+  bool always_editing;
 
-      return ConstrainedBox(
-        child: Stack(
-          children: [
-            Positioned(
-              child: Container(
-                child: Material(
-                  child: FakeInkWell(
-                    child: widget.theme_colours.provider(
-                      builder: (context) => Padding(
-                        child: SizedBox.expand(
-                          child: Align(
-                            child: MeasuredSize(
-                              child: widget.builder(context, focused),
-                              onChange: (size) {
-                                setState(() {
-                                  content_height = size.height + TOP_AND_BOTTOM_PADDING * 2;
-                                });
-                              },
-                            ),
-                            alignment: Alignment.centerLeft,
-                          ),
-                        ),
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                      ),
-                      theme: widget.theme_colours.theme_name,
-                      primary_colour: widget.theme_colours.PRIMARY_COLOUR,
-                      secondary_colour: focused ? widget.theme_colours.ACCENT_COLOUR : widget.theme_colours.PRIMARY_COLOUR,
-                      background_colour: background_colour,
-                    ),
-                  ),
-                  color: background_colour,
-                  elevation: widget.add_shadow ? 8 : 0,
-                ),
-                color: background_colour,
-              ),
-              left: -DEFAULT_DROPDOWN_PADDING,
-              right: -DEFAULT_DROPDOWN_PADDING,
-              top: 0,
-              bottom: 0,
-            ),
-          ],
-          clipBehavior: Clip.none,
-        ),
-        constraints: BoxConstraints(maxWidth: constraints.maxWidth, maxHeight: max_height),
-      );
+  StagedEditor({
+    required this.initial_value,
+    required this.editor_builder,
+    required this.on_confirm,
+    this.on_cancel,
+    this.initially_editing = false,
+    this.always_editing = false,
+  });
+
+  @override
+  _StagedEditorState<T> createState() => _StagedEditorState();
+}
+
+class _StagedEditorState<T> extends State<StagedEditor<T>> {
+  List<String> errors = [];
+  late T value;
+  bool editing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    value = widget.initial_value;
+    editing = widget.always_editing || widget.initially_editing;
+  }
+
+  @override
+  void didUpdateWidget(covariant StagedEditor<T> oldWidget) {
+    if (oldWidget.initial_value != widget.initial_value && widget.initial_value != value) {
+      reset_value();
+    }
+    super.didUpdateWidget(oldWidget);
+  }
+
+  void update_value(new_value) {
+    setState(() {
+      value = new_value;
     });
   }
+
+  void reset_value() {
+    update_value(widget.initial_value);
+  }
+
+  void update_errors(List<String> e) {
+    setState(() {
+      errors = e;
+    });
+  }
+
+  void stop_editing() {
+    if (!widget.always_editing)
+      setState(() {
+        editing = false;
+      });
+  }
+
+  void cancel() {
+    widget.on_cancel?.call(value);
+    reset_value();
+    stop_editing();
+  }
+
+  void confirm() {
+    widget.on_confirm(value);
+    stop_editing();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.editor_builder(
+      editing: editing,
+      start_editing: () {
+        setState(() {
+          editing = true;
+        });
+      },
+      value: value,
+      update_value: update_value,
+      update_errors: update_errors,
+      save: errors.isEmpty ? confirm : null,
+      cancel: cancel,
+      errors: errors,
+    );
+  }
 }
 
-List<DropdownMenuItem<T>> simple_menu_items<T>(BuildContext context, Iterable<Tuple2<T, String>> options, {TextStyle? style, Color? focus_colour}) {
-  return options
-      .mapIndexed(
-        (i, e) => DropdownMenuItem(
-          value: e.element1,
-          child: OptionEntryItemWrapper(
-            value: e.element1,
-            theme_colours: get_zarainia_theme(context),
-            builder: (context, focused) => Text(e.element2, style: style),
-            is_first: i == 0,
-            is_last: i == options.length - 1,
-            focus_colour_getter: focus_colour != null ? (_) => focus_colour : null,
-          ),
-        ),
-      )
-      .toList();
-}
+class EditDialog<T> extends StatelessWidget {
+  String title;
+  T initial_value;
+  Widget Function(T value, Function(T) update_value, Function(List<String>) update_errors) editor_builder;
+  String confirm_button_text;
+  String cancel_button_text;
+  Function(T) on_confirm;
+  Function(T)? on_cancel;
+  BoxConstraints constraints;
+  bool show_error_text;
+  bool shortcuts;
 
-List<DropdownMenuItem<T>> simple_entry_menu_items<T>(BuildContext context, Iterable<MapEntry<T, String>> options, {TextStyle? style, Color? focus_colour}) {
-  return simple_menu_items(context, options.map((e) => Tuple2(e.key, e.value.toString())), style: style, focus_colour: focus_colour);
-}
+  EditDialog({
+    required this.title,
+    required this.initial_value,
+    required this.editor_builder,
+    this.confirm_button_text = "Confirm",
+    this.cancel_button_text = "Cancel",
+    required this.on_confirm,
+    this.on_cancel,
+    this.constraints = const BoxConstraints(minWidth: 500, maxWidth: EDIT_DIALOG_MAX_WIDTH),
+    this.show_error_text = true,
+    this.shortcuts = false,
+  });
 
-List<DropdownMenuItem<T>> simpler_menu_items<T>(BuildContext context, Iterable<T> options, {TextStyle? style, Color? focus_colour}) {
-  return simple_menu_items(context, options.map((e) => Tuple2(e, e.toString())), style: style, focus_colour: focus_colour);
-}
+  void cancel(BuildContext context, T value) {
+    Navigator.of(context).pop();
+    on_cancel?.call(value);
+  }
 
-List<Widget> Function(BuildContext context) simple_selected_menu_items<T>(Iterable<Tuple2<T, String>> options) {
-  return (BuildContext context) => options.map((e) => Text(e.element2)).cast<Widget>().toList();
-}
+  void confirm(BuildContext context, T value) {
+    on_confirm(value);
+    Navigator.of(context).pop();
+  }
 
-List<Widget> Function(BuildContext context) simple_entry_selected_menu_items<T>(Iterable<MapEntry<T, String>> options) {
-  return simple_selected_menu_items(options.map((e) => Tuple2(e.key, e.value.toString())));
-}
+  @override
+  Widget build(BuildContext context) {
+    ZarainiaTheme theme_colours = get_zarainia_theme(context);
 
-List<Widget> Function(BuildContext context) simpler_selected_menu_items<T>(Iterable<T> options) {
-  return simple_selected_menu_items(options.map((e) => Tuple2(e, e.toString())));
+    return StagedEditor(
+      always_editing: true,
+      initial_value: initial_value,
+      on_confirm: (value) => confirm(context, value),
+      on_cancel: (value) => cancel(context, value),
+      editor_builder: ({
+        required bool editing,
+        required Function() start_editing,
+        required T value,
+        required Function(T) update_value,
+        required Function(List<String>) update_errors,
+        VoidCallback? save,
+        required VoidCallback cancel,
+        required List<String> errors,
+      }) {
+        Widget editor = editor_builder(value, update_value, update_errors);
+
+        return BaseMessageDialog(
+          shortcuts: shortcuts ? ConfirmationDialog.DIALOG_SHORTCUTS : const {},
+          actions: {
+            ConfirmIntent: CallbackAction(onInvoke: (_) => save?.call()),
+            CancelIntent: CallbackAction(onInvoke: (_) => cancel()),
+          },
+          message: title,
+          content_widget: show_error_text
+              ? Column(
+                  children: [
+                    ...errors.map((e) => Text("Error: ${e}", style: TextStyle(color: theme_colours.ERROR_TEXT_COLOUR))),
+                    const SizedBox(height: 10),
+                    editor,
+                  ],
+                  mainAxisSize: MainAxisSize.min,
+                )
+              : editor,
+          buttons: [
+            DialogButton(
+              onclick: cancel,
+              text: cancel_button_text,
+            ),
+            DialogButton(
+              onclick: save,
+              text: confirm_button_text,
+            ),
+          ],
+          constraints: constraints,
+        );
+      },
+    );
+  }
 }

@@ -7,6 +7,7 @@ class SearchField extends StatefulWidget {
   Function(String) on_search;
   String? hint;
   TextStyle? style;
+  TextStyle? hint_style;
   bool show_search_icon;
   TextEditingController? controller;
 
@@ -14,6 +15,7 @@ class SearchField extends StatefulWidget {
     required this.on_search,
     this.hint = "Search",
     this.style,
+    this.hint_style,
     this.show_search_icon = true,
     this.controller,
   });
@@ -41,6 +43,7 @@ class _SearchFieldState extends State<SearchField> {
       decoration: TextFieldBorder(
         context: context,
         hintText: widget.hint,
+        hintStyle: widget.hint_style,
         isDense: true,
         prefixIcon: widget.show_search_icon
             ? Icon(
@@ -59,6 +62,7 @@ class _SearchFieldState extends State<SearchField> {
         ),
       ),
       style: widget.style,
+      textAlignVertical: TextAlignVertical.center,
     );
   }
 

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import 'package:inflection2/inflection2.dart';
 
+import 'package:zarainia_utils/src/utils.dart';
 import '../constants.dart' as constants;
 import '../shortcuts.dart';
 import '../string.dart';
@@ -153,7 +154,7 @@ class DialogCloseButton extends StatelessWidget {
 
 class DialogButton extends StatelessWidget {
   String text;
-  VoidCallback onclick;
+  VoidCallback? onclick;
   FocusNode? focus_node;
 
   DialogButton({required this.text, required this.onclick, this.focus_node});
@@ -174,25 +175,32 @@ class DialogButton extends StatelessWidget {
 class BaseMessageDialog extends StatelessWidget {
   String message;
   String? contents;
+  Widget? content_widget;
   Map<ShortcutActivator, Intent>? shortcuts;
   Map<Type, Action<Intent>>? actions;
   List<Widget> buttons;
+  BoxConstraints constraints;
 
-  BaseMessageDialog({required this.message, required this.buttons, this.contents, this.shortcuts, this.actions});
+  BaseMessageDialog(
+      {required this.message,
+      required this.buttons,
+      this.contents,
+      this.content_widget,
+      this.shortcuts,
+      this.actions,
+      this.constraints = const BoxConstraints(maxWidth: constants.ALERT_DIALOG_MAX_WIDTH)});
 
   @override
   Widget build(BuildContext context) {
-    var width_constraints = BoxConstraints(maxWidth: constants.EDIT_DIALOG_MAX_WIDTH);
-
     Widget dialog = AlertDialog(
       title: ConstrainedBox(
         child: Text(message),
-        constraints: width_constraints,
+        constraints: constraints.widthConstraints(),
       ),
-      content: contents != null
+      content: content_widget != null || contents != null
           ? ConstrainedBox(
-              child: Text(contents!),
-              constraints: width_constraints,
+              child: content_widget ?? Text(contents!),
+              constraints: constraints,
             )
           : null,
       actions: buttons,
@@ -377,7 +385,7 @@ class SearchableSelectList<T> extends StatefulWidget {
     this.get_id,
     this.get_parent_ids,
     this.trim_top = true,
-  })  : this.initial_selections = initial_selections ?? [],
+  })  : this.initial_selections = initial_selections != null ? {...initial_selections} : {},
         this.tree_items = tree_view ? build_tree(list: all_items, get_id: get_id!, get_parent_ids: get_parent_ids!) : all_items.map((e) => TreeNode(e)).toList() {
     if (tree_view) {
       tree_items.removeWhere((e) => get_id!(e.entry) < 0);
@@ -616,19 +624,21 @@ class SimpleSelectDialog<T> extends StatelessWidget {
   String item_name_plural;
   bool Function(String, T)? filter_function;
   String Function(T) display_convertor;
+  IconData? icon;
 
-  SimpleSelectDialog(
-      {Key? key,
-      this.filter_function,
-      required this.item_name,
-      String? item_name_plural,
-      required this.all_options,
-      this.onclick,
-      this.multi_select = false,
-      this.confirm_callback,
-      Set<T>? initial_selections,
-      String Function(T)? display_convertor})
-      : initial_selections = initial_selections ?? {},
+  SimpleSelectDialog({
+    Key? key,
+    this.filter_function,
+    required this.item_name,
+    String? item_name_plural,
+    required this.all_options,
+    this.onclick,
+    this.multi_select = false,
+    this.confirm_callback,
+    Set<T>? initial_selections,
+    String Function(T)? display_convertor,
+    this.icon,
+  })  : initial_selections = initial_selections ?? {},
         item_name_plural = item_name_plural ?? pluralize(item_name),
         display_convertor = display_convertor ?? ((T value) => value?.toString() ?? "none"),
         super(key: key) {}
@@ -644,11 +654,13 @@ class SimpleSelectDialog<T> extends StatelessWidget {
           item_builder: (BuildContext context, T item, bool selected, VoidCallback default_onclick, VoidCallback select_item) {
             return ListTile(
               title: Text(display_convertor(item)),
-              leading: IconButton(
-                icon: Icon(selected ? Icons.check_box : Icons.check_box_outline_blank),
-                color: theme_colours.ACCENT_COLOUR,
-                onPressed: select_item,
-              ),
+              leading: multi_select
+                  ? IconButton(
+                      icon: Icon(icon ?? (selected ? Icons.check_box : Icons.check_box_outline_blank)),
+                      color: theme_colours.ACCENT_COLOUR,
+                      onPressed: select_item,
+                    )
+                  : Icon(icon),
               onTap: () {
                 onclick?.call(item);
                 default_onclick();
@@ -677,7 +689,7 @@ class ButtonlessDialog extends StatelessWidget {
   double min_height;
   double max_height;
 
-  ButtonlessDialog({required this.stack_widgets, this.max_width = constants.EDIT_DIALOG_MAX_WIDTH, this.max_height = double.infinity, this.min_width = 0, this.min_height = 0});
+  ButtonlessDialog({required this.stack_widgets, this.max_width = constants.ALERT_DIALOG_MAX_WIDTH, this.max_height = double.infinity, this.min_width = 0, this.min_height = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -705,31 +717,36 @@ class ButtonlessDialog extends StatelessWidget {
 
 class HeaderedButtonlessDialog extends StatelessWidget {
   String title;
-  BoxConstraints constraints;
+  BoxConstraints? constraints;
   Widget child;
 
-  HeaderedButtonlessDialog({required this.title, required this.child, this.constraints = const BoxConstraints(minWidth: 400, maxWidth: 1000)});
+  HeaderedButtonlessDialog({required this.title, required this.child, this.constraints});
 
   @override
   Widget build(BuildContext context) {
     ZarainiaTheme theme_colours = get_zarainia_theme(context);
 
-    return ButtonlessDialog(stack_widgets: [
-      Container(
-        child: ListView(
-          children: [
-            Text(
-              title,
-              style: theme_colours.POPUP_HEADER_STYLE,
-            ),
-            const SizedBox(height: 20),
-            child,
-          ],
-          shrinkWrap: true,
+    return ButtonlessDialog(
+      stack_widgets: [
+        Container(
+          child: ListView(
+            children: [
+              Text(
+                title,
+                style: theme_colours.POPUP_HEADER_STYLE,
+              ),
+              const SizedBox(height: 20),
+              child,
+            ],
+            shrinkWrap: true,
+          ),
+          padding: EdgeInsets.only(left: 20, right: 20, top: 15, bottom: 30),
         ),
-        constraints: constraints,
-        padding: EdgeInsets.only(left: 20, right: 20, top: 15, bottom: 30),
-      ),
-    ]);
+      ],
+      min_width: constraints?.minWidth ?? 0,
+      max_width: constraints?.maxWidth ?? constants.ALERT_DIALOG_MAX_WIDTH,
+      min_height: constraints?.minHeight ?? 0,
+      max_height: constraints?.maxHeight ?? double.infinity,
+    );
   }
 }
