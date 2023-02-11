@@ -76,6 +76,61 @@ class _CollapserState extends State<Collapser> with AutomaticKeepAliveClientMixi
   bool get wantKeepAlive => true;
 }
 
+class CardAccordionBody extends StatelessWidget {
+  Widget? leading;
+  Widget title;
+  Widget? subtitle;
+  Widget contents;
+  bool expanded;
+  Function(bool) change_expand;
+  ShapeBorder? card_shape;
+  Color? card_colour;
+  Color? tile_colour;
+  Color? tile_icon_colour;
+  bool keep_inner_state;
+  VoidCallback? get_focus;
+
+  CardAccordionBody({
+    this.leading,
+    required this.title,
+    this.subtitle,
+    required this.contents,
+    this.expanded = false,
+    required this.change_expand,
+    this.card_shape,
+    this.card_colour,
+    this.tile_colour,
+    this.tile_icon_colour,
+    this.keep_inner_state = false,
+    this.get_focus,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: leading,
+            title: title,
+            subtitle: subtitle,
+            trailing: Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: tile_icon_colour),
+            onTap: () {
+              get_focus?.call();
+              change_expand(!expanded);
+            },
+            tileColor: tile_colour,
+          ),
+          if (!keep_inner_state && expanded) contents else if (keep_inner_state) Offstage(child: contents, offstage: !expanded),
+        ],
+      ),
+      clipBehavior: Clip.hardEdge, // maintain rounded border
+      color: card_colour,
+      shape: card_shape,
+    );
+  }
+}
+
 class CardAccordion extends StatefulWidget {
   Widget? leading;
   Widget title;
@@ -87,7 +142,17 @@ class CardAccordion extends StatefulWidget {
   Color? tile_icon_colour;
   bool keep_inner_state;
 
-  CardAccordion({this.leading, required this.title, this.subtitle, required this.contents, this.card_shape, this.card_colour, this.tile_colour, this.tile_icon_colour, this.keep_inner_state = false});
+  CardAccordion({
+    this.leading,
+    required this.title,
+    this.subtitle,
+    required this.contents,
+    this.card_shape,
+    this.card_colour,
+    this.tile_colour,
+    this.tile_icon_colour,
+    this.keep_inner_state = false,
+  });
 
   @override
   _CardAccordionState createState() => _CardAccordionState();
@@ -115,30 +180,105 @@ class _CardAccordionState extends State<CardAccordion> {
       child: GestureDetector(
         child: Collapser(
           builder: (context, expanded, change_expand) {
-            return Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: widget.leading,
-                    title: widget.title,
-                    subtitle: widget.subtitle,
-                    trailing: Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: widget.tile_icon_colour),
-                    onTap: () {
-                      focus_node.requestFocus();
-                      change_expand(!expanded);
-                    },
-                    tileColor: widget.tile_colour,
-                  ),
-                  if (!widget.keep_inner_state && expanded) widget.contents else if (widget.keep_inner_state) Offstage(child: widget.contents, offstage: !expanded),
-                ],
-              ),
-              clipBehavior: Clip.hardEdge, // maintain rounded border
-              color: widget.card_colour,
-              shape: widget.card_shape,
+            return CardAccordionBody(
+              leading: widget.leading,
+              title: widget.title,
+              subtitle: widget.subtitle,
+              contents: widget.contents,
+              expanded: expanded,
+              change_expand: change_expand,
+              get_focus: focus_node.requestFocus,
+              card_shape: widget.card_shape,
+              card_colour: widget.card_colour,
+              tile_colour: widget.tile_colour,
+              tile_icon_colour: widget.tile_icon_colour,
+              keep_inner_state: widget.keep_inner_state,
             );
           },
         ),
         onTap: () => focus_node.requestFocus(),
+      ),
+    );
+  }
+}
+
+class CustomCardAccordion extends StatefulWidget {
+  Widget? leading;
+  Widget title;
+  Widget? subtitle;
+  Widget contents;
+  bool expanded;
+  Function(bool) change_expand;
+  ShapeBorder? card_shape;
+  Color? card_colour;
+  Color? tile_colour;
+  Color? tile_icon_colour;
+  bool keep_inner_state;
+  Map<Type, Action> actions;
+
+  CustomCardAccordion({
+    this.leading,
+    required this.title,
+    this.subtitle,
+    required this.contents,
+    this.expanded = false,
+    required this.change_expand,
+    this.card_shape,
+    this.card_colour,
+    this.tile_colour,
+    this.tile_icon_colour,
+    this.keep_inner_state = false,
+    this.actions = const {},
+  });
+
+  @override
+  _CustomCardAccordionState createState() => _CustomCardAccordionState();
+}
+
+class _CustomCardAccordionState extends State<CustomCardAccordion> {
+  static const Map<ShortcutActivator, Intent> SHORTCUTS = {
+    SingleActivator(LogicalKeyboardKey.equal, control: true, alt: true): ExpandIntent(),
+    SingleActivator(LogicalKeyboardKey.minus, control: true, alt: true): CollapseIntent(),
+  };
+
+  late FocusNode focus_node;
+
+  @override
+  void initState() {
+    super.initState();
+    focus_node = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    focus_node.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DownPropagationShortcuts(
+      actions: widget.actions,
+      shortcuts: SHORTCUTS,
+      child: Focus(
+        focusNode: focus_node,
+        child: GestureDetector(
+          child: CardAccordionBody(
+            leading: widget.leading,
+            title: widget.title,
+            subtitle: widget.subtitle,
+            contents: widget.contents,
+            expanded: widget.expanded,
+            change_expand: widget.change_expand,
+            get_focus: focus_node.requestFocus,
+            card_shape: widget.card_shape,
+            card_colour: widget.card_colour,
+            tile_colour: widget.tile_colour,
+            tile_icon_colour: widget.tile_icon_colour,
+            keep_inner_state: widget.keep_inner_state,
+          ),
+          onTap: () => focus_node.requestFocus(),
+        ),
       ),
     );
   }

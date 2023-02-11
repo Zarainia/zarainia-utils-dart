@@ -8,11 +8,6 @@ import 'package:inflection2/inflection2.dart';
 
 import 'package:zarainia_utils/src/utils.dart';
 import '../constants.dart' as constants;
-import '../shortcuts.dart';
-import '../string.dart';
-import '../theme.dart';
-import '../tree.dart';
-import 'search.dart';
 
 class CompatibleDialog extends StatelessWidget {
   Widget? title;

@@ -61,55 +61,78 @@ class _MultiErrorManagerState extends State<MultiErrorManager> {
   }
 }
 
-class StagedEditor<T> extends StatefulWidget {
+class StagedEditor<T, K> extends StatefulWidget {
   T initial_value;
   StagedEditorBuilder<T> editor_builder;
   Function(T) on_confirm;
   Function(T)? on_cancel;
   bool initially_editing;
   bool always_editing;
+  bool keep_alive;
+  K? restore_state_identifier;
+  bool disable_saving_unchanged_value;
 
   StagedEditor({
+    Key? key,
     required this.initial_value,
     required this.editor_builder,
     required this.on_confirm,
     this.on_cancel,
     this.initially_editing = false,
     this.always_editing = false,
-  });
+    this.keep_alive = false,
+    this.restore_state_identifier,
+    this.disable_saving_unchanged_value = false,
+  }) : super(key: key ?? (restore_state_identifier != null ? PageStorageKey(restore_state_identifier) : null));
 
   @override
-  _StagedEditorState<T> createState() => _StagedEditorState();
+  _StagedEditorState<T, K> createState() => _StagedEditorState();
 }
 
-class _StagedEditorState<T> extends State<StagedEditor<T>> {
+class _StagedEditorState<T, K> extends State<StagedEditor<T, K>> with AutomaticKeepAliveClientMixin {
+  bool initialized = false;
   List<String> errors = [];
   late T value;
   bool editing = false;
 
   @override
+  bool get wantKeepAlive => initialized && widget.keep_alive && value != widget.initial_value;
+
+  @override
   void initState() {
     super.initState();
     value = widget.initial_value;
+    if (widget.restore_state_identifier != null) value = PageStorage.of(context).readState(context, identifier: widget.restore_state_identifier) ?? value;
     editing = widget.always_editing || widget.initially_editing;
+    initialized = true;
   }
 
   @override
-  void didUpdateWidget(covariant StagedEditor<T> oldWidget) {
+  void didUpdateWidget(covariant StagedEditor<T, K> oldWidget) {
     if (oldWidget.initial_value != widget.initial_value && widget.initial_value != value) {
       reset_value();
     }
     super.didUpdateWidget(oldWidget);
   }
 
-  void update_value(new_value) {
+  void save_value(T? val) {
+    if (widget.restore_state_identifier != null) PageStorage.of(context).writeState(context, val, identifier: widget.restore_state_identifier);
+  }
+
+  void save_curr_value() => save_value(value);
+
+  void clear_saved_value() => save_value(null);
+
+  void update_value(T new_value) {
     setState(() {
       value = new_value;
     });
+    save_curr_value();
   }
 
   void reset_value() {
     update_value(widget.initial_value);
+    clear_saved_value();
   }
 
   void update_errors(List<String> e) {
@@ -126,12 +149,14 @@ class _StagedEditorState<T> extends State<StagedEditor<T>> {
   }
 
   void cancel() {
+    clear_saved_value();
     widget.on_cancel?.call(value);
     reset_value();
     stop_editing();
   }
 
   void confirm() {
+    clear_saved_value();
     widget.on_confirm(value);
     stop_editing();
   }
@@ -148,7 +173,7 @@ class _StagedEditorState<T> extends State<StagedEditor<T>> {
       value: value,
       update_value: update_value,
       update_errors: update_errors,
-      save: errors.isEmpty ? confirm : null,
+      save: errors.isEmpty && (!widget.disable_saving_unchanged_value || value != widget.initial_value) ? confirm : null,
       cancel: cancel,
       errors: errors,
     );
