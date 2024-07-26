@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import 'package:provider/provider.dart';
 
 import 'colour.dart';
@@ -8,6 +7,8 @@ import 'colour.dart';
 class ZarainiaTheme {
   Widget Function({required Widget Function(BuildContext) builder, required String theme, Color? background_colour, required Color? primary_colour, required Color? secondary_colour}) provider =
       ZarainiaThemeProvider.new;
+
+  Brightness BASE_BRIGHTNESS = Brightness.light;
 
   Color PRIMARY_COLOUR = Colors.black;
   Color WEAK_PRIMARY_COLOUR = Colors.black;
@@ -35,6 +36,7 @@ class ZarainiaTheme {
   Color PRIMARY_ICON_COLOUR_LIGHT = Colors.black;
   Color PRIMARY_ICON_COLOUR_DARK = Colors.black;
   Color PRIMARY_ICON_COLOUR = Colors.black;
+  Color ERROR_ICON_COLOUR = Colors.black;
 
   Color BASE_BACKGROUND_COLOUR = Colors.black;
   Color BASE_THEME_BACKGROUND = Colors.black;
@@ -103,6 +105,7 @@ class ZarainiaTheme {
   TextStyle DEFAULT_INPUT_HINT_STYLE = const TextStyle();
   MaterialStateTextStyle DEFAULT_INPUT_LABEL_STYLE = MaterialStateTextStyle.resolveWith((states) => const TextStyle());
   MaterialStateTextStyle DEFAULT_INPUT_FLOATING_LABEL_STYLE = MaterialStateTextStyle.resolveWith((states) => const TextStyle());
+  TextStyle DEFAULT_LIST_TILE_STYLE = const TextStyle();
 
   Color SHADOWED_BACKGROUND_COLOUR = Color.lerp(Colors.black, null, 0.7)!;
   Color SHADOWED_BACKGROUND_TEXT_COLOUR = Colors.white;
@@ -126,6 +129,8 @@ class ZarainiaTheme {
 
   List<Shadow> ICON_SHADOW = [];
   Color SHADOW_COLOUR = Colors.black;
+
+  late Icon CHIP_DELETE_ICON;
 
   List<Color> CHART_PALETTE = [];
 
@@ -163,6 +168,7 @@ class ZarainiaTheme {
     ThemeData default_theme = is_dark ? ThemeData.dark() : ThemeData.light();
     double accent_contrast_ratio = is_dark ? 4 : 3;
 
+    BASE_BRIGHTNESS = is_dark ? Brightness.dark : Brightness.light;
     BASE_THEME_BACKGROUND = default_theme.canvasColor;
     BASE_BACKGROUND_COLOUR = background_colour ?? BASE_THEME_BACKGROUND;
 
@@ -194,6 +200,7 @@ class ZarainiaTheme {
     PRIMARY_ICON_COLOUR_DARK = make_text_colour(PRIMARY_COLOUR, Brightness.dark);
     PRIMARY_ICON_COLOUR = is_dark ? PRIMARY_ICON_COLOUR_LIGHT : PRIMARY_ICON_COLOUR_DARK;
     if (primary_colour != null && colour_contrast_ratio(PRIMARY_COLOUR, BASE_BACKGROUND_COLOUR) > accent_contrast_ratio) PRIMARY_ICON_COLOUR = PRIMARY_COLOUR;
+    ERROR_ICON_COLOUR = Colors.red;
 
     DIM_BACKGROUND = is_dark ? Color.lerp(Colors.white, null, 0.9)! : Color.lerp(Colors.black, null, 0.95)!;
     LESS_DIM_BACKGROUND = is_dark ? Color.lerp(Colors.white, null, 0.8)! : Color.lerp(Colors.black, null, 0.8)!;
@@ -206,7 +213,7 @@ class ZarainiaTheme {
     LIGHT_SHADOWED_BACKGROUND_COLOUR = Color.lerp(Colors.white, null, 0.7)!;
     DIM_LIGHT_SHADOWED_BACKGROUND_COLOUR = Color.lerp(Colors.white, null, 0.7)!;
     GREY_SHADOWED_BACKGROUND_COLOUR = Color.lerp(Colors.grey, null, 0.5)!;
-    PRIMARY_TINTED_BACKGROUND = Color.alphaBlend(DIM_BACKGROUND, BASE_BACKGROUND_COLOUR);
+    PRIMARY_TINTED_BACKGROUND = Color.lerp(PRIMARY_ICON_COLOUR, null, 0.8)!;
     if (background_colour != null) PRIMARY_TINTED_BACKGROUND = Color.lerp(BASE_BACKGROUND_COLOUR, BASE_THEME_BACKGROUND, 0.5)!;
 
     BACKGROUND_CONTRAST_COLOUR = get_constrasting_colour(BASE_BACKGROUND_COLOUR);
@@ -218,16 +225,16 @@ class ZarainiaTheme {
     if (secondary_colour != null && colour_contrast_ratio(ACCENT_COLOUR, BASE_BACKGROUND_COLOUR) > accent_contrast_ratio) ACCENT_TEXT_COLOUR = ACCENT_COLOUR;
     TEXT_ON_ACCENT_COLOUR = ACCENT_CONTRAST_COLOUR;
 
-    DIVIDER_COLOUR = is_dark ? Color.lerp(Colors.white, null, 0.5)! : Color.lerp(Colors.black, null, 0.5)!;
+    DIVIDER_COLOUR = is_dark ? Color.lerp(Colors.white, null, 0.8)! : Color.lerp(Colors.black, null, 0.7)!;
     ON_PRIMARY_DIVIDER_COLOUR = Color.lerp(PRIMARY_CONTRAST_COLOUR, null, 0.5)!;
     BORDER_COLOUR = DIVIDER_COLOUR;
     DOUBLE_STRENGTH_BORDER_COLOUR = Color.lerp(BASE_TEXT_COLOUR, null, 0.7)!;
     BRIGHTER_BORDER_COLOUR = Color.lerp(BASE_TEXT_COLOUR, null, 0.5)!;
-    DIM_BORDER_COLOUR = Color.lerp(BASE_TEXT_COLOUR, null, 0.8)!;
+    DIM_BORDER_COLOUR = Color.lerp(BASE_TEXT_COLOUR, null, is_dark ? 0.8 : 0.9)!;
     ON_PRIMARY_BORDER_COLOUR = ON_PRIMARY_DIVIDER_COLOUR;
     ON_PRIMARY_DIM_BORDER_COLOUR = Color.lerp(PRIMARY_CONTRAST_COLOUR, null, 0.7)!;
     ERROR_BORDER_COLOUR = Colors.red;
-    if (colour_distance(ERROR_BORDER_COLOUR, BASE_BACKGROUND_COLOUR) < 250 && colour_distance(Colors.yellow, BASE_BACKGROUND_COLOUR) > 100) ERROR_BORDER_COLOUR = Colors.yellow;
+    if (colour_distance(ERROR_BORDER_COLOUR, BASE_BACKGROUND_COLOUR) < 150 && colour_distance(Colors.yellow, BASE_BACKGROUND_COLOUR) > 100) ERROR_BORDER_COLOUR = Colors.yellow;
     BRIGHTER_ERROR_BORDER_COLOUR = Color.lerp(ERROR_BORDER_COLOUR, BASE_TEXT_COLOUR, 0.3)!;
     ERROR_BORDER_COLOUR = Color.lerp(ERROR_BORDER_COLOUR, null, 0.3)!;
 
@@ -257,7 +264,7 @@ class ZarainiaTheme {
     typography = Typography.material2021(platform: platform);
     TextTheme locale_theme = get_localized_script_category();
     text_theme = locale_theme.merge(is_dark ? typography.white : typography.black);
-    text_theme = text_theme.copyWith(bodyText1: text_theme.bodyText1!.copyWith(fontSize: 16), bodyText2: text_theme.bodyText2!.copyWith(fontSize: 16));
+    text_theme = text_theme.copyWith(bodyLarge: text_theme.bodyLarge!.copyWith(fontSize: 16), bodyMedium: text_theme.bodyMedium!.copyWith(fontSize: 16));
 
     POPUP_HEADER_STYLE = text_theme.headline5!;
 
@@ -312,6 +319,8 @@ class ZarainiaTheme {
       return base_style.copyWith(color: colour);
     });
 
+    DEFAULT_LIST_TILE_STYLE = text_theme.titleMedium!;
+
     // MARKDOWN_BASE_TEXT_COLOUR = BASE_TEXT_COLOUR;
     // MARKDOWN_QUOTE_TEXT_COLOUR = is_dark ? Colors.blue[100]! : Colors.blue[800]!;
     // MARKDOWN_LINE_COLOUR = BRIGHTER_BORDER_COLOUR;
@@ -341,7 +350,6 @@ class ZarainiaTheme {
     ButtonStyle primary_text_button_theme = TextButton.styleFrom(
       foregroundColor: ACCENT_TEXT_COLOUR,
       textStyle: TextStyle(color: ACCENT_TEXT_COLOUR),
-      minimumSize: Size.zero,
     );
     ButtonStyle primary_outlined_button_theme = OutlinedButton.styleFrom(
       foregroundColor: ACCENT_TEXT_COLOUR,
@@ -373,14 +381,18 @@ class ZarainiaTheme {
       Colors.blue,
     ];
 
+    CHIP_DELETE_ICON = const Icon(Icons.clear, size: 18);
+
     theme = ThemeData(
-      brightness: is_dark ? Brightness.dark : Brightness.light,
+      brightness: BASE_BRIGHTNESS,
       canvasColor: BASE_BACKGROUND_COLOUR,
       primaryColor: PRIMARY_COLOUR,
       focusColor: ACCENT_COLOUR,
-      toggleableActiveColor: ACCENT_COLOUR,
       hoverColor: DIM_BACKGROUND,
       colorScheme: default_theme.colorScheme.copyWith(
+        background: BASE_THEME_BACKGROUND,
+        surface: BASE_THEME_BACKGROUND,
+        surfaceTint: Colors.transparent,
         primary: PRIMARY_COLOUR,
         onPrimary: PRIMARY_CONTRAST_COLOUR,
         primaryContainer: WEAK_PRIMARY_COLOUR,
@@ -389,12 +401,11 @@ class ZarainiaTheme {
         secondaryContainer: WEAK_ACCENT_COLOUR,
         tertiary: ADDITIONAL_COLOUR,
         onTertiary: ADDITIONAL_COLOUR.contrasting_colour,
-        surface: BASE_BACKGROUND_COLOUR,
         error: ERROR_TEXT_COLOUR,
       ),
       textSelectionTheme: TextSelectionThemeData(cursorColor: ACCENT_COLOUR, selectionColor: WEAK_ACCENT_COLOUR, selectionHandleColor: ACCENT_COLOUR),
       inputDecorationTheme: InputDecorationTheme(
-        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: ACCENT_COLOUR)),
+        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: ACCENT_TEXT_COLOUR)),
         prefixStyle: TextStyle(color: ACCENT_TEXT_COLOUR),
         suffixStyle: TextStyle(color: ACCENT_TEXT_COLOUR),
         floatingLabelStyle: TextStyle(color: ACCENT_TEXT_COLOUR),
@@ -414,9 +425,21 @@ class ZarainiaTheme {
       dividerTheme: DividerThemeData(color: DIVIDER_COLOUR, thickness: 0, space: 0, indent: 0, endIndent: 0),
       appBarTheme: AppBarTheme(backgroundColor: PRIMARY_COLOUR, foregroundColor: PRIMARY_CONTRAST_COLOUR),
       textTheme: text_theme,
-      chipTheme: ChipThemeData(backgroundColor: PRIMARY_COLOUR, brightness: PRIMARY_COLOUR_BRIGHTNESS),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(backgroundColor: PRIMARY_COLOUR, foregroundColor: PRIMARY_CONTRAST_COLOUR),
+      chipTheme: ChipThemeData(backgroundColor: PRIMARY_COLOUR, brightness: PRIMARY_COLOUR_BRIGHTNESS, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(backgroundColor: ACCENT_COLOUR, foregroundColor: PRIMARY_CONTRAST_COLOUR),
       iconTheme: IconThemeData(color: ICON_COLOUR),
+      tabBarTheme: TabBarTheme(indicatorColor: ACCENT_COLOUR),
+      toggleButtonsTheme: ToggleButtonsThemeData(
+        color: ACCENT_TEXT_COLOUR,
+        borderColor: ACCENT_COLOUR,
+        fillColor: ACCENT_COLOUR,
+        selectedColor: TEXT_ON_ACCENT_COLOUR,
+        selectedBorderColor: ACCENT_COLOUR,
+        splashColor: ACCENT_COLOUR,
+        borderRadius: BorderRadius.circular(7),
+      ),
+      tooltipTheme: TooltipThemeData(waitDuration: const Duration(milliseconds: 500)),
+      useMaterial3: true,
     );
 
     overlay_style = SystemUiOverlayStyle(statusBarColor: PRIMARY_COLOUR, statusBarBrightness: PRIMARY_COLOUR_BRIGHTNESS);
@@ -455,37 +478,46 @@ class ZarainiaTheme {
   }
 
   static Widget on_appbar_theme_provider(BuildContext context, Widget Function(BuildContext context) child_builder, {Color? appbar_colour, bool bright_icons = false}) {
-    ZarainiaTheme theme_colours = get_zarainia_theme(context);
+    ZarainiaTheme outer_theme_colours = get_zarainia_theme(context);
 
-    return theme_colours.provider(
-      builder: (context) {
-        ZarainiaTheme theme_colours = get_zarainia_theme(context);
-        Widget child = child_builder(context);
-        if (bright_icons)
-          child = Theme(
-            data: theme_colours.theme.copyWith(
+    return OriginalZarainiaThemeProvider(
+      original_theme: outer_theme_colours,
+      builder: (context) => outer_theme_colours.provider(
+        builder: (context) {
+          ZarainiaTheme theme_colours = get_zarainia_theme(context);
+          Widget child = child_builder(context);
+          ThemeData theme = theme_colours.theme;
+          if (bright_icons)
+            theme = theme.copyWith(
               iconTheme: IconThemeData(color: theme_colours.BACKGROUND_CONTRAST_COLOUR),
-            ),
-            child: child,
-          );
-        return child;
-      },
-      theme: theme_colours.theme_name,
-      background_colour: appbar_colour ?? theme_colours.PRIMARY_COLOUR,
-      primary_colour: theme_colours.ACCENT_COLOUR,
-      secondary_colour: theme_colours.ACCENT_COLOUR,
+            );
+          return theme == theme_colours.theme
+              ? child
+              : Theme(
+                  data: theme,
+                  child: child,
+                );
+        },
+        theme: outer_theme_colours.theme_name,
+        background_colour: appbar_colour ?? outer_theme_colours.PRIMARY_COLOUR,
+        primary_colour: outer_theme_colours.ACCENT_COLOUR,
+        secondary_colour: outer_theme_colours.ACCENT_COLOUR,
+      ),
     );
   }
 
   static Widget off_appbar_theme_provider(BuildContext context, Widget Function(BuildContext context) child_builder) {
-    ZarainiaTheme theme_colours = get_zarainia_theme(context);
+    ZarainiaTheme? original_theme_colours = get_original_theme(context)?.original_theme;
 
-    return theme_colours.provider(
-      builder: child_builder,
-      theme: theme_colours.theme_name,
-      primary_colour: theme_colours.BASE_BACKGROUND_COLOUR,
-      secondary_colour: theme_colours.ACCENT_COLOUR,
-    );
+    if (original_theme_colours == null)
+      return child_builder(context);
+    else
+      return original_theme_colours.provider(
+          builder: child_builder,
+          theme: original_theme_colours.theme_name,
+          primary_colour: original_theme_colours.PRIMARY_COLOUR,
+          secondary_colour: original_theme_colours.ACCENT_COLOUR,
+          background_colour: original_theme_colours.BASE_BACKGROUND_COLOUR);
   }
 }
 
@@ -530,10 +562,44 @@ class ZarainiaThemeProvider extends StatelessWidget {
   }
 }
 
+class OriginalZarainiaTheme {
+  final ZarainiaTheme original_theme;
+  final BuildContext original_context;
+
+  const OriginalZarainiaTheme(this.original_context, this.original_theme);
+}
+
+class OriginalZarainiaThemeProvider extends StatelessWidget {
+  final ZarainiaTheme original_theme;
+  final Widget Function(BuildContext) builder;
+
+  const OriginalZarainiaThemeProvider({required this.original_theme, required this.builder});
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: original_theme.theme,
+      child: Builder(
+        builder: (context) => Provider<OriginalZarainiaTheme>.value(
+          value: OriginalZarainiaTheme(context, original_theme),
+          builder: (context, widget) => builder(context),
+        ),
+      ),
+    );
+  }
+}
+
 ThemeData get_themedata(BuildContext context) {
   return Theme.of(context);
 }
 
 ZarainiaTheme get_zarainia_theme(BuildContext context) {
   return context.watch<ZarainiaTheme>();
+}
+
+OriginalZarainiaTheme? get_original_theme(BuildContext context, {bool watch = true}) {
+  if (watch)
+    return context.watch<OriginalZarainiaTheme?>();
+  else
+    return Provider.of<OriginalZarainiaTheme?>(context, listen: false);
 }

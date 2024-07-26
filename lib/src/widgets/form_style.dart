@@ -28,7 +28,7 @@ InputDecoration TextFieldBorder({
   ZarainiaTheme theme_colours = get_zarainia_theme(context);
   return InputDecoration(
     enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: enabled_colour ?? theme_colours.BORDER_COLOUR, width: 1)),
-    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: focused_colour ?? theme_colours.ACCENT_COLOUR, width: 1)),
+    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: focused_colour ?? theme_colours.ACCENT_TEXT_COLOUR, width: 1)),
     errorBorder: OutlineInputBorder(borderSide: BorderSide(color: error_colour ?? theme_colours.ERROR_BORDER_COLOUR, width: 1)),
     focusedErrorBorder: OutlineInputBorder(borderSide: BorderSide(color: error_colour ?? theme_colours.BRIGHTER_ERROR_BORDER_COLOUR, width: 1)),
     hintText: hintText,
@@ -73,7 +73,7 @@ InputDecoration TextFieldUnderline({
   ZarainiaTheme theme_colours = get_zarainia_theme(context);
   return InputDecoration(
     enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: enabled_colour ?? theme_colours.BORDER_COLOUR, width: 1)),
-    focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: focused_colour ?? theme_colours.ACCENT_COLOUR, width: 1)),
+    focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: focused_colour ?? theme_colours.ACCENT_TEXT_COLOUR, width: 1)),
     errorBorder: UnderlineInputBorder(borderSide: BorderSide(color: error_colour ?? theme_colours.ERROR_BORDER_COLOUR, width: 1)),
     focusedErrorBorder: UnderlineInputBorder(borderSide: BorderSide(color: error_colour ?? theme_colours.ERROR_BORDER_COLOUR, width: 1)),
     hintText: hintText,
@@ -109,7 +109,7 @@ InputDecoration MultilineFieldDecoration(BuildContext context, {String? hint, bo
     hintText: hint,
     isDense: dense,
     border: OutlineInputBorder(borderSide: BorderSide(color: theme_colours.BORDER_COLOUR)),
-    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: theme_colours.ACCENT_COLOUR)),
+    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: theme_colours.ACCENT_TEXT_COLOUR)),
     errorBorder: OutlineInputBorder(borderSide: BorderSide(color: theme_colours.ERROR_BORDER_COLOUR)),
     focusedErrorBorder: OutlineInputBorder(borderSide: BorderSide(color: theme_colours.ERROR_BORDER_COLOUR)),
     errorStyle: !show_error_text ? HIDDEN_ERROR_STYLE : null,

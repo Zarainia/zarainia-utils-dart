@@ -35,7 +35,7 @@ class ITuple2<T1, T2> {
 
   @override
   bool operator ==(Object other) {
-    if (other is Tuple2) return element1 == other.element1 && element2 == other.element2;
+    if (other is ITuple2) return element1 == other.element1 && element2 == other.element2;
     return super == other;
   }
 

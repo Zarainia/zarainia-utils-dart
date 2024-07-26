@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
+import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 
 class DefaultMap<K, V> extends MapBase<K, V> {
   final Map<K, V> _map = LinkedHashMap();
@@ -116,4 +117,13 @@ Map<V, K> invert_map<K, V>(Map<K, V> map) {
 
 extension ZarainiaMapExtension<K, V> on Map<K, V> {
   Map<V, K> invert() => invert_map(this);
+}
+
+IMap<T, ISet<U>> add_to_map_set<T, U>(IMap<T, ISet<U>> map_set, T key, U value) {
+  ISet<U> set = map_set[key] ?? ISetConst<U>({});
+  return map_set.add(key, set.add(value));
+}
+
+IMap<T, ISet<U>> add_all_to_map_set<T, U>(IMap<T, ISet<U>> map_set, Iterable<MapEntry<T, U>> values) {
+  return values.fold(map_set, (current, entry) => add_to_map_set(current, entry.key, entry.value));
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:zarainia_utils/src/utils.dart';
+import 'package:zarainia_utils/src/exports.dart';
 
 String pad_text(String text, int amount) => ' ' * amount + text + ' ' * amount;
 

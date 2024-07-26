@@ -25,6 +25,12 @@ dependencies:
   sqflite: any
   shared_preferences: any
   uuid: any
+  context_menus: any
+  intersperse: any
+  fast_immutable_collections: any
+  record: any
+  unified_sounds:
+    git: https://github.com/Zarainia/unified_sounds
 
 dev_dependencies:
   flutter_test:

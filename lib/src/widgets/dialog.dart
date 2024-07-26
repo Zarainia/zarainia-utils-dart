@@ -1,13 +1,21 @@
 import 'dart:collection';
 import 'dart:math';
 
+import 'package:context_menus/context_menus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import 'package:inflection2/inflection2.dart';
+import 'package:zarainia_utils/src/exports.dart';
 
-import 'package:zarainia_utils/src/utils.dart';
 import '../constants.dart' as constants;
+
+Future show_dialog({required BuildContext context, required Widget Function(BuildContext context) builder}) {
+  OriginalZarainiaTheme? outer_theme = get_original_theme(context, watch: false);
+  return showDialog(
+    context: outer_theme?.original_context ?? context,
+    builder: builder,
+  );
+}
 
 class CompatibleDialog extends StatelessWidget {
   Widget? title;
@@ -118,29 +126,36 @@ class CompatibleDialog extends StatelessWidget {
 
     double window_height = MediaQuery.of(context).size.height;
 
-    return Dialog(
-      child: Container(
-        child: contents,
-        constraints: BoxConstraints(maxHeight: min(window_height - 100, max_height), minHeight: min_height, maxWidth: max_width, minWidth: min_width),
+    return ZarainiaTheme.off_appbar_theme_provider(
+      context,
+      (context) => ContextMenuOverlay(
+        child: Dialog(
+          child: Container(
+            child: contents,
+            constraints: BoxConstraints(maxHeight: min(window_height - 100, max_height), minHeight: min_height, maxWidth: max_width, minWidth: min_width),
+          ),
+        ),
       ),
     );
   }
 }
 
-class DialogCloseButton extends StatelessWidget {
-  DialogCloseButton();
+class PositionedCloseButton extends StatelessWidget {
+  final bool invert_background;
+
+  const PositionedCloseButton({this.invert_background = false});
 
   @override
   Widget build(BuildContext context) {
     ZarainiaTheme theme_colours = get_zarainia_theme(context);
 
     return Positioned(
-      child: Container(
-        child: CloseButton(
-          color: Colors.white,
-        ),
-        decoration: ShapeDecoration(color: theme_colours.CLOSE_ICON_BUTTON_COLOUR, shape: CircleBorder()),
-      ),
+      child: invert_background
+          ? Container(
+              child: const CloseButton(color: Colors.white),
+              decoration: ShapeDecoration(color: theme_colours.CLOSE_ICON_BUTTON_COLOUR, shape: const CircleBorder()),
+            )
+          : const CloseButton(),
       top: 10,
       right: 10,
     );
@@ -168,38 +183,48 @@ class DialogButton extends StatelessWidget {
 }
 
 class BaseMessageDialog extends StatelessWidget {
-  String message;
+  String? message;
+  Widget? message_widget;
   String? contents;
   Widget? content_widget;
   Map<ShortcutActivator, Intent>? shortcuts;
   Map<Type, Action<Intent>>? actions;
   List<Widget> buttons;
   BoxConstraints constraints;
+  bool close_button;
 
-  BaseMessageDialog(
-      {required this.message,
-      required this.buttons,
-      this.contents,
-      this.content_widget,
-      this.shortcuts,
-      this.actions,
-      this.constraints = const BoxConstraints(maxWidth: constants.ALERT_DIALOG_MAX_WIDTH)});
+  BaseMessageDialog({
+    this.message,
+    this.message_widget,
+    required this.buttons,
+    this.contents,
+    this.content_widget,
+    this.shortcuts,
+    this.actions,
+    this.constraints = const BoxConstraints(maxWidth: constants.ALERT_DIALOG_MAX_WIDTH),
+    this.close_button = true,
+  });
 
   @override
   Widget build(BuildContext context) {
-    Widget dialog = AlertDialog(
-      title: ConstrainedBox(
-        child: Text(message),
-        constraints: constraints.widthConstraints(),
+    Widget dialog = ZarainiaTheme.off_appbar_theme_provider(
+      context,
+      (context) => ContextMenuOverlay(
+        child: AlertDialog(
+          title: ConstrainedBox(
+            child: message_widget ?? Text(message!),
+            constraints: constraints.widthConstraints(),
+          ),
+          content: content_widget != null || contents != null
+              ? ConstrainedBox(
+                  child: content_widget ?? Text(contents!),
+                  constraints: constraints,
+                )
+              : null,
+          actions: buttons,
+          actionsPadding: EdgeInsets.only(right: 10, bottom: 10),
+        ),
       ),
-      content: content_widget != null || contents != null
-          ? ConstrainedBox(
-              child: content_widget ?? Text(contents!),
-              constraints: constraints,
-            )
-          : null,
-      actions: buttons,
-      actionsPadding: EdgeInsets.only(right: 10, bottom: 10),
     );
 
     if (shortcuts != null || actions != null)
@@ -229,13 +254,13 @@ class ConfirmationDialog extends StatelessWidget {
   ConfirmationDialog({required this.message, this.contents, this.confirm_button_text = "Confirm", this.cancel_button_text = "Cancel", required this.on_confirm, this.on_cancel});
 
   void cancel(BuildContext context) {
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(false);
     on_cancel?.call();
   }
 
   void confirm(BuildContext context) {
     on_confirm();
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -272,13 +297,13 @@ class ChoiceDialog extends StatelessWidget {
   ChoiceDialog({required this.message, this.contents, required this.buttons, this.cancel_button_text = "Cancel", this.on_cancel}) : assert(buttons.isNotEmpty);
 
   void cancel(BuildContext context) {
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(false);
     on_cancel?.call();
   }
 
   void confirm_default(BuildContext context) {
     buttons.values.first();
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -302,7 +327,7 @@ class ChoiceDialog extends StatelessWidget {
                 (button) => DialogButton(
                   text: button.key,
                   onclick: () {
-                    Navigator.of(context).pop();
+                    Navigator.of(context).pop(true);
                     button.value();
                   },
                 ),
@@ -364,6 +389,7 @@ class SearchableSelectList<T> extends StatefulWidget {
   final int Function(T)? get_id;
   final Set<int> Function(T)? get_parent_ids;
   final bool trim_top;
+  final bool Function(T item) can_select;
 
   List<TreeNode<T>> tree_items;
 
@@ -373,15 +399,17 @@ class SearchableSelectList<T> extends StatefulWidget {
     required this.filter_function,
     this.multiselect = false,
     this.confirm_callback,
-    initial_selections,
+    Iterable<T>? initial_selections,
     this.item_name = "item",
     this.items_name = "items",
     this.tree_view = false,
     this.get_id,
     this.get_parent_ids,
     this.trim_top = true,
+    bool Function(T item)? can_select,
   })  : this.initial_selections = initial_selections != null ? {...initial_selections} : {},
-        this.tree_items = tree_view ? build_tree(list: all_items, get_id: get_id!, get_parent_ids: get_parent_ids!) : all_items.map((e) => TreeNode(e)).toList() {
+        this.tree_items = tree_view ? build_tree(list: all_items, get_id: get_id!, get_parent_ids: get_parent_ids!) : all_items.map((e) => TreeNode(e)).toList(),
+        can_select = can_select ?? ((_) => true) {
     if (tree_view) {
       tree_items.removeWhere((e) => get_id!(e.entry) < 0);
       while (tree_items.length == 1) tree_items = tree_items[0].children;
@@ -400,7 +428,7 @@ class _SearchableSelectListState<T> extends State<SearchableSelectList<T>> {
   List<TreeNode<T>> visible_items = [];
   List<TreeNode<T>> filtered_items = [];
   Set<T> selected_items = {};
-  late TextEditingController search_controller;
+  String search_string = '';
 
   @override
   void initState() {
@@ -408,7 +436,6 @@ class _SearchableSelectListState<T> extends State<SearchableSelectList<T>> {
     visible_items = widget.tree_items;
     filtered_items = visible_items;
     selected_items = widget.initial_selections;
-    search_controller = TextEditingController();
   }
 
   @override
@@ -421,12 +448,6 @@ class _SearchableSelectListState<T> extends State<SearchableSelectList<T>> {
         filtered_items = visible_items;
       });
     }
-  }
-
-  @override
-  void dispose() {
-    search_controller.dispose();
-    super.dispose();
   }
 
   void go_to_root() {
@@ -449,21 +470,23 @@ class _SearchableSelectListState<T> extends State<SearchableSelectList<T>> {
 
   void return_single_selection(T item) {
     widget.confirm_callback?.call(context, {item});
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(true);
   }
 
   void handle_select(T item) {
-    if (widget.multiselect) {
-      if (selected_items.contains(item))
-        setState(() {
-          selected_items.remove(item);
-        });
-      else
-        setState(() {
-          selected_items.add(item);
-        });
-    } else {
-      return_single_selection(item);
+    if (widget.can_select(item)) {
+      if (widget.multiselect) {
+        if (selected_items.contains(item))
+          setState(() {
+            selected_items.remove(item);
+          });
+        else
+          setState(() {
+            selected_items.add(item);
+          });
+      } else {
+        return_single_selection(item);
+      }
     }
   }
 
@@ -472,7 +495,7 @@ class _SearchableSelectListState<T> extends State<SearchableSelectList<T>> {
       parent_stack.add(node);
       visible_items = node.children;
     });
-    do_search(search_controller.text);
+    do_search(search_string);
   }
 
   void exit_node() {
@@ -483,7 +506,7 @@ class _SearchableSelectListState<T> extends State<SearchableSelectList<T>> {
       else
         visible_items = parent_stack.last.children;
     });
-    do_search(search_controller.text);
+    do_search(search_string);
   }
 
   void handle_click(TreeNode<T> node) {
@@ -506,10 +529,10 @@ class _SearchableSelectListState<T> extends State<SearchableSelectList<T>> {
   Widget build(BuildContext context) {
     ZarainiaTheme theme_colours = get_zarainia_theme(context);
 
-    VoidCallback cancel = () => Navigator.of(context).pop();
+    VoidCallback cancel = () => Navigator.of(context).pop(false);
     VoidCallback confirm = () {
       widget.confirm_callback?.call(context, selected_items);
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
     };
 
     return DownPropagationShortcuts(
@@ -522,8 +545,8 @@ class _SearchableSelectListState<T> extends State<SearchableSelectList<T>> {
       child: Column(
         children: [
           SearchField(
+            search_string: search_string,
             on_search: do_search,
-            controller: search_controller,
           ),
           SizedBox(height: 15),
           if (filtered_items.isEmpty)
@@ -599,6 +622,21 @@ class _SearchableSelectListState<T> extends State<SearchableSelectList<T>> {
                   text: "Confirm",
                   onclick: confirm,
                 ),
+              ],
+              mainAxisAlignment: MainAxisAlignment.end,
+            )
+          else if (widget.tree_view && parent_stack.isNotEmpty)
+            Row(
+              children: [
+                DialogButton(
+                  text: "Go up",
+                  onclick: exit_node,
+                ),
+                if (widget.can_select(parent_stack.last.entry))
+                  DialogButton(
+                    text: "Confirm",
+                    onclick: () => return_single_selection(parent_stack.last.entry),
+                  ),
               ],
               mainAxisAlignment: MainAxisAlignment.end,
             ),
@@ -677,6 +715,165 @@ class SimpleSelectDialog<T> extends StatelessWidget {
   }
 }
 
+class EntrySelectDialog<IDType, T> extends StatelessWidget {
+  final String item_name;
+  final String item_name_plural;
+  final List<IDType> all_options;
+  final Set<IDType> initial_selections;
+  final T Function(IDType) get_entry;
+  final Function(T)? onclick;
+  final Function(BuildContext, Set<IDType>)? confirm_callback;
+  final bool Function(String, T)? filter_function;
+  final String Function(T)? display_convertor;
+  final Widget Function(BuildContext context, T item, bool selected)? label_builder;
+  final IconData? icon;
+  final Widget Function(BuildContext context, T item, bool selected)? icon_builder;
+  final Color? Function(BuildContext context, T item, bool selected)? get_icon_colour;
+  final Color? Function(BuildContext context, T item, bool selected)? get_tile_colour;
+  final bool multi_select;
+
+  EntrySelectDialog({
+    super.key,
+    required this.item_name,
+    String? item_name_plural,
+    required this.all_options,
+    Set<IDType>? initial_selections,
+    required this.get_entry,
+    this.onclick,
+    this.confirm_callback,
+    this.filter_function,
+    String Function(T)? display_convertor,
+    this.label_builder,
+    this.icon,
+    this.icon_builder,
+    this.get_icon_colour,
+    this.get_tile_colour,
+    this.multi_select = false,
+  })  : initial_selections = initial_selections ?? {},
+        item_name_plural = item_name_plural ?? pluralize(item_name),
+        display_convertor = display_convertor ?? ((T value) => value.toString());
+
+  @override
+  Widget build(BuildContext context) {
+    ZarainiaTheme theme_colours = get_zarainia_theme(context);
+    return CompatibleDialog(
+      title: Text("Select ${multi_select ? item_name_plural : item_name}"),
+      content: Container(
+        child: SearchableSelectList<IDType>(
+          all_items: all_options,
+          item_builder: (BuildContext context, IDType id, bool selected, VoidCallback default_onclick, VoidCallback select_item) {
+            T entry = get_entry(id);
+
+            return ListTile(
+              title: label_builder?.call(context, entry, selected) ?? Text(display_convertor!(entry)),
+              leading: multi_select
+                  ? IconButton(
+                      icon: icon_builder?.call(context, entry, selected) ?? Icon(icon ?? (selected ? Icons.check_box : Icons.check_box_outline_blank)),
+                      color: get_icon_colour?.call(context, entry, selected) ?? theme_colours.ACCENT_COLOUR,
+                      onPressed: select_item,
+                    )
+                  : icon_builder?.call(context, entry, selected) ?? Icon(icon),
+              onTap: () {
+                onclick?.call(entry);
+                default_onclick();
+              },
+              tileColor: get_tile_colour?.call(context, entry, selected) ?? (selected ? theme_colours.WEAK_ACCENT_COLOUR : null),
+            );
+          },
+          filter_function: filter_function != null
+              ? ((String search_string, IDType id) => filter_function!(search_string, get_entry(id)))
+              : (String search_string, IDType id) => caseless_match(search_string, display_convertor!(get_entry(id))),
+          multiselect: multi_select,
+          confirm_callback: confirm_callback,
+          initial_selections: initial_selections,
+          item_name: item_name,
+          items_name: item_name_plural,
+        ),
+      ),
+      max_width: constants.SEARCH_SELECT_DIALOG_MAX_WIDTH,
+      scrollable: false,
+    );
+  }
+}
+
+class AddNullEntrySelectDialog<IDType, T> extends StatelessWidget {
+  final String item_name;
+  final String item_name_plural;
+  final List<IDType?> all_options;
+  final Set<IDType?> initial_selections;
+  final T Function(IDType) get_entry;
+  final Function(T?)? onclick;
+  final Function(BuildContext, Set<IDType?>)? confirm_callback;
+  final bool? Function(String, T?)? filter_function;
+  final String Function(T?) display_convertor;
+  final Widget Function(BuildContext context, T item, bool selected)? label_builder;
+  final IconData? icon;
+  final Widget Function(BuildContext context, T item, bool selected)? icon_builder;
+  final Color Function(BuildContext context, T? item, bool selected)? get_icon_colour;
+  final Color Function(BuildContext context, T? item, bool selected)? get_tile_colour;
+  final String null_text;
+  final Widget Function(BuildContext context, bool selected)? null_label_builder;
+  final Function(BuildContext context, bool selected)? null_icon_builder;
+  final bool multi_select;
+
+  AddNullEntrySelectDialog({
+    super.key,
+    required this.item_name,
+    String? item_name_plural,
+    required this.all_options,
+    Set<IDType?>? initial_selections,
+    required this.get_entry,
+    this.onclick,
+    this.confirm_callback,
+    this.filter_function,
+    String? Function(T?)? display_convertor,
+    this.label_builder,
+    this.icon,
+    this.icon_builder,
+    this.get_icon_colour,
+    this.get_tile_colour,
+    this.null_text = "none",
+    this.null_label_builder,
+    this.null_icon_builder,
+    this.multi_select = false,
+  })  : initial_selections = initial_selections ?? {},
+        item_name_plural = item_name_plural ?? pluralize(item_name),
+        display_convertor = ((T? value) => display_convertor?.call(value) ?? value?.toString() ?? null_text);
+
+  @override
+  Widget build(BuildContext context) {
+    return EntrySelectDialog<IDType?, T?>(
+      item_name: item_name,
+      item_name_plural: item_name_plural,
+      all_options: all_options,
+      initial_selections: initial_selections,
+      get_entry: (id) => id == null ? null : get_entry(id),
+      onclick: onclick,
+      confirm_callback: confirm_callback,
+      filter_function: filter_function == null
+          ? null
+          : (search_string, entry) {
+              bool? matches = filter_function!(search_string, entry);
+              if (entry != null)
+                return matches!;
+              else
+                return matches ?? caseless_match(search_string, display_convertor(entry));
+            },
+      display_convertor: display_convertor,
+      label_builder: (context, entry, selected) => (entry == null ? null_label_builder?.call(context, selected) : label_builder?.call(context, entry, selected)) ?? Text(display_convertor(entry)),
+      icon: icon,
+      icon_builder: (context, entry, selected) {
+        return (entry == null ? null_icon_builder?.call(context, selected) : icon_builder?.call(context, entry, selected)) ?? multi_select
+            ? Icon(icon ?? (selected ? Icons.check_box : Icons.check_box_outline_blank))
+            : Icon(icon);
+      },
+      get_icon_colour: get_icon_colour,
+      get_tile_colour: get_tile_colour,
+      multi_select: multi_select,
+    );
+  }
+}
+
 class ButtonlessDialog extends StatelessWidget {
   List<Widget> stack_widgets;
   double min_width;
@@ -696,13 +893,23 @@ class ButtonlessDialog extends StatelessWidget {
         }
         return KeyEventResult.ignored;
       }),
-      child: Dialog(
-        child: Container(
-          child: Stack(
-            children: stack_widgets + [DialogCloseButton()],
-            alignment: Alignment.center,
+      child: ZarainiaTheme.off_appbar_theme_provider(
+        context,
+        (context) => ContextMenuOverlay(
+          child: Dialog(
+            child: Container(
+              child: Stack(
+                children: stack_widgets + const [PositionedCloseButton()],
+                alignment: Alignment.center,
+              ),
+              constraints: BoxConstraints(
+                maxHeight: max_height,
+                minHeight: min_height,
+                maxWidth: max_width,
+                minWidth: min_width,
+              ),
+            ),
           ),
-          constraints: BoxConstraints(maxHeight: max_height, minHeight: min_height, maxWidth: max_width, minWidth: min_width),
         ),
       ),
       // autofocus: true,
@@ -711,30 +918,46 @@ class ButtonlessDialog extends StatelessWidget {
 }
 
 class HeaderedButtonlessDialog extends StatelessWidget {
-  String title;
-  BoxConstraints? constraints;
-  Widget child;
+  final String? title;
+  final Widget? title_widget;
+  final BoxConstraints? constraints;
+  final Widget child;
+  final bool scrollable;
 
-  HeaderedButtonlessDialog({required this.title, required this.child, this.constraints});
+  const HeaderedButtonlessDialog({
+    this.title,
+    this.title_widget,
+    required this.child,
+    this.constraints,
+    this.scrollable = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     ZarainiaTheme theme_colours = get_zarainia_theme(context);
+    Widget created_title = title_widget ?? Text(title!, style: theme_colours.POPUP_HEADER_STYLE);
 
     return ButtonlessDialog(
       stack_widgets: [
         Container(
-          child: ListView(
-            children: [
-              Text(
-                title,
-                style: theme_colours.POPUP_HEADER_STYLE,
-              ),
-              const SizedBox(height: 20),
-              child,
-            ],
-            shrinkWrap: true,
-          ),
+          child: scrollable
+              ? ListView(
+                  children: [
+                    created_title,
+                    const SizedBox(height: 20),
+                    child,
+                  ],
+                  shrinkWrap: true,
+                )
+              : Column(
+                  children: [
+                    created_title,
+                    const SizedBox(height: 20),
+                    Flexible(child: child),
+                  ],
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                ),
           padding: EdgeInsets.only(left: 20, right: 20, top: 15, bottom: 30),
         ),
       ],
@@ -742,6 +965,33 @@ class HeaderedButtonlessDialog extends StatelessWidget {
       max_width: constraints?.maxWidth ?? constants.ALERT_DIALOG_MAX_WIDTH,
       min_height: constraints?.minHeight ?? 0,
       max_height: constraints?.maxHeight ?? double.infinity,
+    );
+  }
+}
+
+class FixDialogListView extends StatelessWidget {
+  final Widget child;
+
+  const FixDialogListView({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(child: child, width: double.maxFinite);
+  }
+}
+
+class DiscardFileConfirmationDialog extends StatelessWidget {
+  final VoidCallback on_confirm;
+
+  const DiscardFileConfirmationDialog({required this.on_confirm});
+
+  @override
+  Widget build(BuildContext context) {
+    return ConfirmationDialog(
+      message: "Discard changes?",
+      contents: "You have unsaved changes. Are you sure you want to discard them?",
+      confirm_button_text: "Discard",
+      on_confirm: on_confirm,
     );
   }
 }

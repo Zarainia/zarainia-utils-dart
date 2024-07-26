@@ -1,21 +1,37 @@
 import 'package:flutter/material.dart';
-
 import 'package:inflection2/inflection2.dart';
 import 'package:intl/intl.dart';
-
 import 'package:zarainia_utils/src/theme.dart';
+
 import 'dialog.dart';
 
-class MultiFilterRow<T> extends StatelessWidget {
-  Set<T> curr_list;
-  Function(Set<T> new_list) cubit_update_function;
-  String label;
-  Widget dialog;
-  String item_name;
-  String item_name_plural;
+typedef MultiFilterEntryDialogBuilder<IDType> = Widget Function({
+  required Function(Set<IDType>) confirm_selections,
+  required Set<IDType> initial_selections,
+  bool multi_select,
+  bool add_null,
+  String item_name,
+  String? item_name_plural,
+});
 
-  MultiFilterRow({required this.curr_list, required this.label, required this.dialog, required this.cubit_update_function, this.item_name = "item", String? item_name_plural})
-      : item_name_plural = item_name_plural ?? pluralize(item_name);
+class MultiFilterRow<T> extends StatelessWidget {
+  final Set<T> curr_list;
+  final void Function(Set<T> new_list) cubit_update_function;
+  final String label;
+  final Widget dialog;
+  final String item_name;
+  final String item_name_plural;
+  final bool disabled;
+
+  MultiFilterRow({
+    required this.curr_list,
+    required this.label,
+    required this.dialog,
+    required this.cubit_update_function,
+    this.item_name = "item",
+    String? item_name_plural,
+    this.disabled = false,
+  }) : item_name_plural = item_name_plural ?? pluralize(item_name);
 
   @override
   Widget build(BuildContext context) {
@@ -37,24 +53,28 @@ class MultiFilterRow<T> extends StatelessWidget {
           ),
         ],
       ),
-      onTap: () {
-        showDialog(
-          context: context,
-          builder: (context) {
-            return dialog;
-          },
-        );
-      },
-      trailing: IconButton(
-        icon: Icon(
-          Icons.delete,
-          color: theme_colours.ICON_COLOUR,
-        ),
-        onPressed: () {
-          cubit_update_function({});
-        },
-        tooltip: "Clear",
-      ),
+      onTap: disabled
+          ? null
+          : () {
+              show_dialog(
+                context: context,
+                builder: (context) {
+                  return dialog;
+                },
+              );
+            },
+      trailing: disabled
+          ? null
+          : IconButton(
+              icon: Icon(
+                Icons.delete,
+                color: theme_colours.ICON_COLOUR,
+              ),
+              onPressed: () {
+                cubit_update_function({});
+              },
+              tooltip: "Clear",
+            ),
     );
   }
 }
@@ -77,6 +97,36 @@ class TextSwitchIndicator extends StatelessWidget {
         border: Border.all(color: theme_colours.ACCENT_TEXT_COLOUR),
       ),
       padding: EdgeInsets.all(5),
+    );
+  }
+}
+
+class TextSwitch extends StatelessWidget {
+  bool curr_value;
+  Function(bool new_value) cubit_update_function;
+  String label;
+  String true_label;
+  String false_label;
+
+  TextSwitch({required this.curr_value, required this.label, this.true_label = "true", this.false_label = "false", required this.cubit_update_function});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget true_indicator = TextSwitchIndicator(text: true_label);
+    Widget false_indicator = TextSwitchIndicator(text: false_label);
+
+    Widget indicator;
+    if (curr_value)
+      indicator = true_indicator;
+    else
+      indicator = false_indicator;
+
+    return ListTile(
+      title: Text(label),
+      onTap: () {
+        cubit_update_function(!curr_value);
+      },
+      trailing: indicator,
     );
   }
 }
@@ -166,14 +216,7 @@ class MultiFilterSimpleSelectDialog<T> extends StatelessWidget {
 }
 
 class MultiFilterEntrySelectDialog<IDType> extends StatelessWidget {
-  Widget Function({
-    required Function(Set<IDType>) confirm_selections,
-    required Set<IDType> initial_selections,
-    bool multi_select,
-    bool add_null,
-    String item_name,
-    String? item_name_plural,
-  }) dialog_builder;
+  MultiFilterEntryDialogBuilder<IDType> dialog_builder;
   Set<IDType> curr_selections;
   Function(Set<IDType>) confirm_selections;
   String label;

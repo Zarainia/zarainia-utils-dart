@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:zarainia_utils/src/shortcuts.dart';
+import 'package:zarainia_utils/src/exports.dart';
 
 class OuterExpandCollapser extends StatelessWidget {
   static const Map<ShortcutActivator, Intent> SHORTCUTS = {
@@ -107,26 +107,29 @@ class CardAccordionBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Column(
-        children: [
-          ListTile(
-            leading: leading,
-            title: title,
-            subtitle: subtitle,
-            trailing: Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: tile_icon_colour),
-            onTap: () {
-              get_focus?.call();
-              change_expand(!expanded);
-            },
-            tileColor: tile_colour,
-          ),
-          if (!keep_inner_state && expanded) contents else if (keep_inner_state) Offstage(child: contents, offstage: !expanded),
-        ],
+    Widget? child;
+    if (keep_inner_state)
+      child = Offstage(child: contents, offstage: !expanded);
+    else if (expanded) child = contents;
+
+    return OverflowableCard(
+      background_widget: Align(
+        child: ListTile(
+          leading: leading,
+          title: title,
+          subtitle: subtitle,
+          trailing: Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, color: tile_icon_colour),
+          onTap: () {
+            get_focus?.call();
+            change_expand(!expanded);
+          },
+          tileColor: tile_colour,
+        ),
+        alignment: Alignment.topLeft,
       ),
-      clipBehavior: Clip.hardEdge, // maintain rounded border
-      color: card_colour,
-      shape: card_shape,
+      child: child,
+      card_colour: card_colour,
+      card_shape: card_shape,
     );
   }
 }

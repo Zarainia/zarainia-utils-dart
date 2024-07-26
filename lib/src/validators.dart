@@ -1,3 +1,5 @@
+import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+
 typedef InputValidationFunction = String? Function(String? text);
 
 abstract class InputValidator {
@@ -8,6 +10,12 @@ abstract class InputValidator {
   String get invalid_message => "Invalid ${field}";
 
   String? call(String? text);
+
+  @override
+  int get hashCode => field.hashCode;
+
+  @override
+  bool operator ==(Object other) => other is InputValidator && other.field == field;
 }
 
 class EmptyValidator extends InputValidator {
@@ -24,6 +32,12 @@ class EmptyValidator extends InputValidator {
     if ((!allow_null && text == null) || (!allow_empty && (text?.isEmpty ?? true))) return invalid_message;
     return null;
   }
+
+  @override
+  int get hashCode => Object.hash(field, allow_null, allow_empty);
+
+  @override
+  bool operator ==(Object other) => super == other && other is EmptyValidator && other.allow_null == allow_null && other.allow_empty == allow_empty;
 }
 
 class CompoundValidator extends InputValidator {
@@ -39,6 +53,12 @@ class CompoundValidator extends InputValidator {
     }
     return null;
   }
+
+  @override
+  int get hashCode => Object.hashAll([field, ...validators]);
+
+  @override
+  bool operator ==(Object other) => super == other && other is CompoundValidator && other.validators.deepEquals(validators);
 }
 
 class FloatValidator extends InputValidator {
@@ -60,6 +80,12 @@ class FloatValidator extends InputValidator {
     }
     return null;
   }
+
+  @override
+  int get hashCode => Object.hash(field, minimum, maximum, empty_handler);
+
+  @override
+  bool operator ==(Object other) => super == other && other is FloatValidator && other.minimum == minimum && other.maximum == maximum && other.empty_handler == empty_handler;
 }
 
 class IntegerValidator {
@@ -82,4 +108,10 @@ class IntegerValidator {
     }
     return null;
   }
+
+  @override
+  int get hashCode => Object.hash(field, minimum, maximum, empty_handler);
+
+  @override
+  bool operator ==(Object other) => super == other && other is IntegerValidator && other.minimum == minimum && other.maximum == maximum && other.empty_handler == empty_handler;
 }

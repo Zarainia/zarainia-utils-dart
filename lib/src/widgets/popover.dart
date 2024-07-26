@@ -17,8 +17,8 @@ class PopoverButton extends StatelessWidget {
     return clickable_builder(context, () {
       showPopover(
         context: context,
-        bodyBuilder: (context) => overlay_contents,
-        backgroundColor: get_themedata(context).dialogBackgroundColor,
+        bodyBuilder: (context) => ZarainiaTheme.off_appbar_theme_provider(context, (context) => overlay_contents),
+        backgroundColor: (get_original_theme(context, watch: false)?.original_theme.theme ?? get_themedata(context)).dialogBackgroundColor,
       );
     });
   }

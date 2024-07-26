@@ -5,13 +5,9 @@ import 'package:collection/collection.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
+import 'database.dart';
+
 enum DatabaseActionType { QUERY, INSERT, UPDATE, DELETE, EXECUTE }
-
-abstract class BaseDatabaseLike {
-  Future<void> close();
-
-  Future<T> transaction<T>(Future<T> action(DatabaseExecutor txn), {bool? exclusive});
-}
 
 abstract class DatabaseAction<T> {
   final DatabaseActionType type;
@@ -106,13 +102,13 @@ class DeleteDatabaseAction extends DatabaseAction<int> {
   }
 }
 
-abstract class BaseTrackedDatabase extends DatabaseExecutor {
+abstract class BaseTrackedDatabaseExecutor implements DatabaseExecutor {
   List<DatabaseAction> actions;
   StreamController<DatabaseAction> action_stream_controller = StreamController();
 
   DatabaseExecutor get internal_database;
 
-  BaseTrackedDatabase({List<DatabaseAction>? existing_actions}) : actions = existing_actions ?? [];
+  BaseTrackedDatabaseExecutor({List<DatabaseAction>? existing_actions}) : actions = existing_actions ?? [];
 
   @override
   Future<List<Map<String, Object?>>> query(String table,
@@ -183,16 +179,36 @@ abstract class BaseTrackedDatabase extends DatabaseExecutor {
   }
 
   Future reapply_all(DatabaseExecutor target) async {
-    for (DatabaseAction action in actions) await action.apply(target);
+    for (DatabaseAction action in actions)
+      try {
+        await action.apply(target);
+      } catch (e) {
+        log("error occurred during reapply", error: e);
+      }
   }
 
   @override
   Batch batch() {
     return internal_database.batch();
   }
+
+  @override
+  bool get isOpen => database.isOpen;
+
+  @override
+  String get path => database.path;
 }
 
-class TrackedDatabase extends BaseTrackedDatabase implements BaseDatabaseLike {
+class TrackedTransaction extends BaseTrackedDatabaseExecutor implements Transaction {
+  Transaction internal_database;
+
+  TrackedTransaction(this.internal_database, {super.existing_actions});
+
+  @override
+  Database get database => internal_database.database;
+}
+
+class TrackedDatabase extends BaseTrackedDatabaseExecutor with ExtendedDatabaseMixin {
   Database internal_database;
 
   TrackedDatabase(this.internal_database, {super.existing_actions});
@@ -219,16 +235,7 @@ class TrackedDatabase extends BaseTrackedDatabase implements BaseDatabaseLike {
   }
 }
 
-class TrackedTransaction extends BaseTrackedDatabase {
-  Transaction internal_database;
-
-  TrackedTransaction(this.internal_database, {super.existing_actions});
-
-  @override
-  Database get database => internal_database.database;
-}
-
-class SavepointedDatabase extends BaseTrackedDatabase implements BaseDatabaseLike {
+class SavepointedDatabase extends BaseTrackedDatabaseExecutor with ExtendedDatabaseMixin {
   static Uuid _uuid_gen = Uuid();
 
   Database disk_database;
@@ -317,7 +324,7 @@ class SavepointedDatabase extends BaseTrackedDatabase implements BaseDatabaseLik
   }
 
   @override
-  Future<T> transaction<T>(Future<T> Function(DatabaseExecutor txn) action, {bool? exclusive}) async {
+  Future<T> transaction<T>(Future<T> Function(TrackedTransaction txn) action, {bool? exclusive}) async {
     TrackedTransaction? tracked_transaction;
     T result = await internal_database.transaction((TrackedTransaction transaction) {
       tracked_transaction = transaction;

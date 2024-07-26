@@ -1,75 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:zarainia_utils/src/exports.dart';
 
-import 'package:zarainia_utils/src/theme.dart';
-import 'form_style.dart';
-
-class SearchField extends StatefulWidget {
-  Function(String) on_search;
-  String? hint;
-  TextStyle? style;
-  TextStyle? hint_style;
-  bool show_search_icon;
-  TextEditingController? controller;
+class SearchField extends StatelessWidget {
+  final String search_string;
+  final void Function(String) on_search;
+  final String? hint;
+  final TextStyle? style;
+  final TextStyle? hint_style;
+  final bool show_search_icon;
 
   SearchField({
+    this.search_string = '',
     required this.on_search,
     this.hint = "Search",
     this.style,
     this.hint_style,
     this.show_search_icon = true,
-    this.controller,
   });
-
-  @override
-  _SearchFieldState createState() => _SearchFieldState();
-}
-
-class _SearchFieldState extends State<SearchField> {
-  late TextEditingController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = widget.controller ?? TextEditingController();
-  }
 
   @override
   Widget build(BuildContext context) {
     ZarainiaTheme theme_colours = get_zarainia_theme(context);
 
-    return TextField(
-      controller: controller,
-      onChanged: widget.on_search,
+    return StatedTextField(
+      initial_text: search_string,
+      on_changed: on_search,
       decoration: TextFieldBorder(
         context: context,
-        hintText: widget.hint,
-        hintStyle: widget.hint_style,
+        hintText: hint,
+        hintStyle: hint_style,
         isDense: true,
-        prefixIcon: widget.show_search_icon
+        prefixIcon: show_search_icon
             ? Icon(
                 Icons.search,
                 color: theme_colours.ICON_COLOUR,
               )
             : null,
         suffixIcon: IconButton(
-          icon: Icon(Icons.close),
+          icon: Icon(Icons.clear),
           color: theme_colours.ICON_COLOUR,
-          onPressed: () {
-            controller.text = "";
-            widget.on_search("");
-          },
+          onPressed: () => on_search(''),
           tooltip: "Clear",
         ),
       ),
-      style: widget.style,
-      textAlignVertical: TextAlignVertical.center,
+      style: style,
     );
-  }
-
-  @override
-  void dispose() {
-    if (widget.controller == null) controller.dispose();
-    super.dispose();
   }
 }
 

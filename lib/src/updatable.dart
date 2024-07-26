@@ -1,11 +1,10 @@
 import 'dart:developer';
 
-import 'package:flutter/material.dart';
-
 import 'package:collection/collection.dart';
+import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
 
-import 'utils.dart';
+import 'exports.dart';
 
 abstract class Freezable {
   freeze();
@@ -18,9 +17,11 @@ class Updatable<T> {
 
   CompositeSubscription subscription = CompositeSubscription();
 
-  Updatable({required this.curr_value, required this.future_values}) {
+  Updatable({required this.curr_value, required Stream<T?> future_values}) : future_values = future_values.startWith(curr_value) {
+    // prefix stream with current value because combiners don't emit until each stream has emitted
     assert(future_values.isBroadcast);
-    subscription.add(future_values.listen((event) {
+    subscription.add(future_values.listen((event) {})); // add empty listener to original stream to ensure it isn't buffered even if it was created from `asBroadcastStream()`
+    subscription.add(this.future_values.listen((event) {
       curr_value = event;
     }));
   }
@@ -93,6 +94,10 @@ class Updatable<T> {
     return from_map(curr_value, future_values, convertor);
   }
 
+  Updatable<T2> cast<T2>() {
+    return map((value) => value as T2);
+  }
+
   static Updatable<T2> from_map<T1, T2>(T1 curr_value, Stream<T1> stream, T2? Function(T1) convertor) {
     return Updatable(curr_value: convertor(curr_value), future_values: stream.map(convertor).asBroadcastStream());
   }
@@ -102,6 +107,7 @@ class Updatable<T> {
   }
 
   static Updatable<T2> combine_list<T1, T2>(Iterable<Updatable<T1>?>? updatables, T2? Function(Iterable<T1?>) convertor) {
+    updatables?.forEach((updatable) => updatable?.dispose());
     return Updatable(
       curr_value: convertor(updatables?.map((updatable) => updatable?.curr_value) ?? []),
       future_values: CombineLatestStream(updatables?.map((updatable) => updatable?.future_values ?? Stream.fromIterable(<T1?>[])) ?? <Stream<T1?>>[], convertor).asBroadcastStream(),
@@ -109,6 +115,8 @@ class Updatable<T> {
   }
 
   static Updatable<O> combine2<T1, T2, O>(Updatable<T1> updatable1, Updatable<T2> updatable2, O? Function(T1?, T2?) convertor) {
+    updatable1.dispose();
+    updatable2.dispose();
     return Updatable(
       curr_value: convertor(updatable1.curr_value, updatable2.curr_value),
       future_values: Rx.combineLatest2(updatable1.future_values, updatable2.future_values, convertor).asBroadcastStream(),
@@ -116,6 +124,9 @@ class Updatable<T> {
   }
 
   static Updatable<O> combine3<T1, T2, T3, O>(Updatable<T1> updatable1, Updatable<T2> updatable2, Updatable<T3> updatable3, O? Function(T1?, T2?, T3?) convertor) {
+    updatable1.dispose();
+    updatable2.dispose();
+    updatable3.dispose();
     return Updatable(
       curr_value: convertor(updatable1.curr_value, updatable2.curr_value, updatable3.curr_value),
       future_values: Rx.combineLatest3(updatable1.future_values, updatable2.future_values, updatable3.future_values, convertor).asBroadcastStream(),
@@ -123,12 +134,23 @@ class Updatable<T> {
   }
 
   static Updatable<T> flatten<T>(Updatable<Updatable<T>> updatable) {
+    updatable.dispose();
+    updatable.curr_value?.dispose();
     return Updatable(
-        curr_value: updatable.curr_value?.curr_value,
-        future_values: updatable.future_values.map((event) => event?.future_values).startWith(updatable.curr_value?.future_values).whereType<Stream<T?>>().flatten());
+      curr_value: updatable.curr_value?.curr_value,
+      future_values: updatable.future_values
+          .map((event) {
+            event?.dispose();
+            return event?.future_values;
+          })
+          .startWith(updatable.curr_value?.future_values)
+          .whereType<Stream<T?>>()
+          .flatten(),
+    );
   }
 
   static Updatable<Map<K, List<T>>> group_by<T, K>(Updatable<Iterable<T>> list, Updatable<K> Function(T) grouper) {
+    list.dispose();
     return list.map((list) {
       Iterable<Updatable<MapEntry<K?, T>>> keys = (list ?? const []).map((value) => grouper(value).map((key) => MapEntry(key, value)));
 
@@ -142,6 +164,21 @@ class Updatable<T> {
         return map;
       });
     }).flatten();
+  }
+
+  static Updatable<T> reduce_functions<T>(Iterable<Updatable<T>? Function(T?)> functions, Updatable<T> initial) {
+    initial.dispose();
+    Updatable<T> curr_value = initial;
+    for (Updatable<T>? Function(T?) func in functions) {
+      curr_value = curr_value.map(func).flatten();
+    }
+    return curr_value;
+  }
+}
+
+extension UpdatableOfNullableExtension<T> on Updatable<T?> {
+  Updatable<T> null_check() {
+    return map((value) => value!);
   }
 }
 

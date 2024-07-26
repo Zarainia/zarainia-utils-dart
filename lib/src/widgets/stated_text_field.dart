@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'package:intl/intl.dart';
 
-import 'package:zarainia_utils/src/utils.dart';
+import 'package:zarainia_utils/src/exports.dart';
 
 class DoubleInputConvertor {
   final int decimals;
@@ -45,6 +45,7 @@ class StatedTextField<T> extends StatefulWidget {
   T initial_text;
   Function(T)? on_changed;
   InputDecoration decoration;
+  TextStyle? style;
   TextAlign text_align;
   InputValidationFunction? validator;
   Function(String?)? on_error;
@@ -55,10 +56,13 @@ class StatedTextField<T> extends StatefulWidget {
   bool Function(T, String)? ignore_update;
   TextInputType? input_type;
   bool expanded;
-  TextStyle? style;
+  bool expanded_vertical;
   bool clearable;
   Color? icon_colour;
   double cursor_width;
+  bool always_update;
+  bool? enabled;
+  bool read_only;
 
   String converted_text;
 
@@ -78,10 +82,14 @@ class StatedTextField<T> extends StatefulWidget {
     T Function(String)? output_convertor,
     this.input_type,
     this.expanded = true,
+    this.expanded_vertical = false,
     this.style,
     this.clearable = false,
     this.icon_colour,
     this.cursor_width = 2.0,
+    this.always_update = false,
+    this.enabled,
+    this.read_only = false,
   })  : converted_text = input_convertor(initial_text),
         output_convertor = (output_convertor == null && '' is T) ? (null is T ? ((value) => (value.isEmpty ? null : value) as T) : ((value) => value as T)) : output_convertor! {
     if (multiline && input_type == null) input_type = TextInputType.multiline;
@@ -95,12 +103,24 @@ class _StatedTextField<T> extends State<StatedTextField<T>> {
   late TextEditingController controller;
   String? error;
 
+  void update_error(String text) {
+    String? new_error = widget.validator?.call(text);
+    if (new_error != error) {
+      error = new_error;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          error = new_error;
+        });
+        widget.on_error?.call(error);
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     controller = TextEditingController(text: widget.converted_text);
-    error = widget.validator?.call(widget.converted_text);
-    WidgetsBinding.instance.addPostFrameCallback((_) => widget.on_error?.call(error));
+    update_error(widget.converted_text);
   }
 
   @override
@@ -110,23 +130,21 @@ class _StatedTextField<T> extends State<StatedTextField<T>> {
           widget.converted_text != widget.input_convertor(widget.output_convertor(controller.text)) &&
           (widget.ignore_update == null || !widget.ignore_update!(widget.initial_text, controller.text))) {
         controller.text = widget.converted_text;
-        setState(() {
-          error = widget.validator?.call(widget.converted_text);
-        });
-        widget.on_error?.call(error);
+        update_error(widget.converted_text);
       }
     } catch (e) {
       log("Error converting text", error: e);
+    }
+
+    if (widget.validator != oldWidget.validator) {
+      update_error(controller.text);
     }
     super.didUpdateWidget(oldWidget);
   }
 
   void on_changed(String text) {
-    setState(() {
-      error = widget.validator?.call(text);
-    });
-    widget.on_error?.call(error);
-    if (error == null) widget.on_changed?.call(widget.output_convertor(text));
+    update_error(text);
+    if (error == null || widget.always_update) widget.on_changed?.call(widget.output_convertor(text));
   }
 
   @override
@@ -137,14 +155,13 @@ class _StatedTextField<T> extends State<StatedTextField<T>> {
         errorText: toBeginningOfSentenceCase(error),
         suffixIcon: widget.clearable
             ? IconButton(
-                icon: Icon(
-                  Icons.clear,
-                ),
+                icon: const Icon(Icons.clear),
                 onPressed: () {
                   controller.clear();
                   on_changed('');
                 },
                 color: widget.icon_colour,
+                tooltip: "Clear",
               )
             : null,
       ),
@@ -156,6 +173,9 @@ class _StatedTextField<T> extends State<StatedTextField<T>> {
       maxLines: widget.multiline ? null : 1,
       style: widget.style,
       cursorWidth: widget.cursor_width,
+      enabled: widget.enabled,
+      readOnly: widget.read_only,
+      expands: widget.expanded_vertical,
     );
     if (!widget.expanded)
       return IntrinsicWidth(child: textfield);

@@ -1,11 +1,9 @@
 import 'dart:math';
 
-import 'package:flutter/material.dart';
-
 import 'package:collection/collection.dart' hide Tuple2;
+import 'package:flutter/material.dart';
 import 'package:measured_size/measured_size.dart';
-
-import 'package:zarainia_utils/src/utils.dart';
+import 'package:zarainia_utils/src/exports.dart';
 
 class LabeledCheckbox extends StatelessWidget {
   bool value;
@@ -237,75 +235,16 @@ List<DropdownMenuItem<T>> simpler_menu_items<T>(BuildContext context, Iterable<T
   return simple_menu_items(context, options.map((e) => Tuple2(e, e.toString())), style: style, focus_colour: focus_colour);
 }
 
-List<Widget> Function(BuildContext context) simple_selected_menu_items<T>(Iterable<Tuple2<T, String>> options) {
-  return (BuildContext context) => options.map((e) => Text(e.element2)).cast<Widget>().toList();
+List<Widget> Function(BuildContext context) simple_selected_menu_items<T>(Iterable<Tuple2<T, String>> options, {TextStyle? style}) {
+  return (BuildContext context) => options.map((e) => Text(e.element2, style: style)).cast<Widget>().toList();
 }
 
-List<Widget> Function(BuildContext context) simple_entry_selected_menu_items<T>(Iterable<MapEntry<T, String>> options) {
-  return simple_selected_menu_items(options.map((e) => Tuple2(e.key, e.value.toString())));
+List<Widget> Function(BuildContext context) simple_entry_selected_menu_items<T>(Iterable<MapEntry<T, String>> options, {TextStyle? style}) {
+  return simple_selected_menu_items(options.map((e) => Tuple2(e.key, e.value.toString())), style: style);
 }
 
-List<Widget> Function(BuildContext context) simpler_selected_menu_items<T>(Iterable<T> options) {
-  return simple_selected_menu_items(options.map((e) => Tuple2(e, e.toString())));
-}
-
-class MenuEntryItemWrapper<T> extends StatefulWidget {
-  T value;
-  Widget Function(BuildContext, bool) builder;
-  Function(T value)? on_focus;
-  Color? Function(T value)? focus_colour_getter;
-
-  MenuEntryItemWrapper({
-    required this.value,
-    required this.builder,
-    this.on_focus,
-    this.focus_colour_getter,
-  });
-
-  @override
-  _MenuEntryItemWrapperState<T> createState() => _MenuEntryItemWrapperState<T>();
-}
-
-class _MenuEntryItemWrapperState<T> extends State<MenuEntryItemWrapper<T>> {
-  bool focused = false;
-  FocusNode? node;
-
-  void focus_listener() {
-    if (mounted && node != null) {
-      setState(() {
-        focused = node!.hasFocus;
-      });
-      if (focused) widget.on_focus?.call(widget.value);
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    node?.removeListener(focus_listener);
-    node = Focus.of(context);
-    node?.addListener(focus_listener);
-  }
-
-  @override
-  void dispose() {
-    node?.removeListener(focus_listener);
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    ZarainiaTheme theme_colours = get_zarainia_theme(context);
-    Color background_colour = focused ? (widget.focus_colour_getter?.call(widget.value) ?? theme_colours.ACCENT_COLOUR) : theme_colours.BASE_BACKGROUND_COLOUR;
-
-    return theme_colours.provider(
-      builder: (context) => widget.builder(context, focused),
-      theme: theme_colours.theme_name,
-      primary_colour: theme_colours.PRIMARY_COLOUR,
-      secondary_colour: focused ? theme_colours.ACCENT_COLOUR : theme_colours.PRIMARY_COLOUR,
-      background_colour: background_colour,
-    );
-  }
+List<Widget> Function(BuildContext context) simpler_selected_menu_items<T>(Iterable<T> options, {TextStyle? style}) {
+  return simple_selected_menu_items(options.map((e) => Tuple2(e, e.toString())), style: style);
 }
 
 class _IncrementButton extends StatelessWidget {
@@ -339,6 +278,69 @@ class TextFieldIncrementButtons<T extends num> extends StatelessWidget {
         _IncrementButton(icon: Icons.add, on_click: () => on_changed((curr_value + increment) as T)),
         _IncrementButton(icon: Icons.remove, on_click: () => on_changed((curr_value - increment) as T)),
       ],
+    );
+  }
+}
+
+class ToggleButtonRow<T> extends StatelessWidget {
+  final String? label;
+  final T curr_value;
+  final List<T> all_values;
+  final Widget Function(BuildContext context, T values) label_builder;
+  final Function(T) on_change;
+
+  const ToggleButtonRow({this.label, required this.curr_value, required this.all_values, required this.label_builder, required this.on_change});
+
+  @override
+  Widget build(BuildContext context) {
+    ZarainiaTheme theme_colours = get_zarainia_theme(context);
+    return Row(
+      children: [
+        if (label != null)
+          Padding(
+            child: Text("${label}:", style: theme_colours.DEFAULT_LIST_TILE_STYLE),
+            padding: const EdgeInsets.only(right: 20),
+          ),
+        ToggleButtons(
+          children: all_values
+              .map(
+                (value) => Padding(
+                  child: label_builder(context, value),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                ),
+              )
+              .toList(),
+          isSelected: all_values.map((value) => value == curr_value).toList(),
+          onPressed: (i) => on_change(all_values[i]),
+        ),
+      ],
+      crossAxisAlignment: CrossAxisAlignment.center,
+    );
+  }
+}
+
+class DropdownBooleanInput extends StatelessWidget {
+  final bool value;
+  final Function(bool) on_change;
+  final TextStyle? style;
+  final InputDecoration? decoration;
+  final bool expanded;
+
+  const DropdownBooleanInput({required this.value, required this.on_change, this.style, this.decoration, this.expanded = false});
+
+  @override
+  Widget build(BuildContext context) {
+    List<bool> options = [true, false];
+
+    return DropdownButtonFormField<bool>(
+      value: value,
+      items: simpler_menu_items(context, options),
+      selectedItemBuilder: simpler_selected_menu_items(options),
+      onChanged: (bool? value) => on_change(value!),
+      style: style,
+      decoration: decoration,
+      focusColor: Colors.transparent,
+      isExpanded: expanded,
     );
   }
 }

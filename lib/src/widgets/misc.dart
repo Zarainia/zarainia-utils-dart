@@ -5,11 +5,12 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart' as launcher;
 
 import '../theme.dart';
+
+const MINIMUM_VISUAL_DENSITY = VisualDensity(horizontal: VisualDensity.minimumDensity, vertical: VisualDensity.minimumDensity);
 
 class PaddinglessSelectableText extends StatelessWidget {
   String text;
@@ -298,45 +299,6 @@ class _NonTextScalingFlexibleSpaceBarState extends State<NonTextScalingFlexibleS
   }
 }
 
-class CircleButton extends StatelessWidget {
-  Color? background_colour;
-  Color? icon_colour;
-  double icon_size;
-  EdgeInsets padding;
-  IconData icon;
-  VoidCallback onclick;
-  double elevation;
-  FocusNode? focus_node;
-
-  CircleButton(
-      {required this.icon, required this.onclick, this.background_colour, this.icon_colour, this.icon_size = 24, this.padding = const EdgeInsets.all(8), this.elevation = 0, this.focus_node});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      child: InkWell(
-        child: Padding(
-          child: Icon(icon, size: icon_size, color: icon_colour),
-          padding: padding,
-        ),
-        onTap: onclick,
-        focusNode: focus_node,
-        customBorder: const CircleBorder(),
-      ),
-      elevation: elevation,
-      shape: const CircleBorder(),
-      color: background_colour,
-      // style: ElevatedButton.styleFrom(
-      //   shape: CircleBorder(),
-      //   primary: background_colour,
-      //   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      //   minimumSize: Size.zero,
-      //   padding: EdgeInsets.zero,
-      // ),
-    );
-  }
-}
-
 /// NOTE ref: https://github.com/flutter/flutter/issues/71687 & https://gist.github.com/matthew-carroll/65411529a5fafa1b527a25b7130187c6
 /// Same as `IntrinsicWidth` except that when this widget is instructed
 /// to `computeDryLayout()`, it doesn't invoke that on its child, instead
@@ -447,7 +409,7 @@ class EmptyContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(width: 0, height: 0);
+    return const SizedBox(width: 0, height: 0);
   }
 }
 
@@ -461,21 +423,22 @@ class ListSubheader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(left: indent_to_icon ? 72 : 16, top: first ? 6 : 16, bottom: 16, right: 16),
+      padding: EdgeInsets.only(left: indent_to_icon ? 72 : 16, top: first ? 6 : 16, bottom: 6, right: 16),
       child: Text(
         text,
-        style: TextStyle(fontSize: 14, color: get_zarainia_theme(context).DIM_TEXT_COLOUR),
+        style: TextStyle(fontSize: 13, color: get_zarainia_theme(context).DIM_TEXT_COLOUR, fontWeight: FontWeight.bold),
       ),
     );
   }
 }
 
 class ListSubheaderTile extends StatelessWidget {
-  Widget? contents;
-  String? text;
-  Color? colour;
+  final Widget? contents;
+  final String? text;
+  final Color? colour;
+  final bool side_borders;
 
-  ListSubheaderTile({this.contents, this.text, this.colour});
+  const ListSubheaderTile({this.contents, this.text, this.colour, this.side_borders = true});
 
   @override
   Widget build(BuildContext context) {
@@ -496,7 +459,7 @@ class ListSubheaderTile extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
           decoration: BoxDecoration(
             color: colour,
-            border: Border.symmetric(vertical: BorderSide(color: theme_colours.BORDER_COLOUR)),
+            border: side_borders ? Border.symmetric(vertical: BorderSide(color: theme_colours.BORDER_COLOUR)) : null,
           ),
         );
       },
@@ -518,11 +481,12 @@ class LinkText extends StatelessWidget {
   }
 }
 
-class LinkOnTop extends StatelessWidget {
+class InkwellOnTop extends StatelessWidget {
   Widget child;
-  String url;
+  VoidCallback? on_click;
+  ShapeBorder? shape;
 
-  LinkOnTop({required this.child, required this.url});
+  InkwellOnTop({required this.child, this.on_click, this.shape});
 
   @override
   Widget build(BuildContext context) {
@@ -533,12 +497,26 @@ class LinkOnTop extends StatelessWidget {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () => launcher.launch(url),
+              onTap: on_click,
+              customBorder: shape,
+              focusColor: Colors.transparent,
             ),
           ),
         ),
       ],
     );
+  }
+}
+
+class LinkOnTop extends StatelessWidget {
+  Widget child;
+  String url;
+
+  LinkOnTop({required this.child, required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkwellOnTop(child: child, on_click: () => launcher.launch(url));
   }
 }
 
@@ -715,9 +693,8 @@ class SimplerChip extends StatelessWidget {
           if (delete_func != null)
             Positioned(
               child: IconButton(
-                icon: Icon(Icons.close),
+                icon: theme_colours.CHIP_DELETE_ICON,
                 onPressed: delete_func!,
-                iconSize: 18,
                 constraints: const BoxConstraints(),
                 padding: EdgeInsets.zero,
                 tooltip: "Delete",
@@ -776,6 +753,66 @@ class ClickToCopy extends StatelessWidget {
     return InkWell(
       child: child,
       onTap: () => Clipboard.setData(ClipboardData(text: text)),
+    );
+  }
+}
+
+class OverflowableCard extends StatelessWidget {
+  final Widget? background_widget;
+  final Widget? child;
+  final ShapeBorder? card_shape;
+  final Color? card_colour;
+
+  OverflowableCard({this.child, this.background_widget, this.card_shape, this.card_colour});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Card(
+            child: background_widget,
+            clipBehavior: Clip.hardEdge, // maintain rounded border
+            color: card_colour,
+            shape: card_shape,
+          ),
+        ),
+        Column(
+          children: [
+            const SizedBox(height: 56, width: double.infinity),
+            if (child != null) child!,
+          ],
+        ),
+      ],
+      clipBehavior: Clip.none,
+    );
+  }
+}
+
+class BracketedSelectableText extends StatelessWidget {
+  final String left;
+  final String centre;
+  final String right;
+  final TextStyle? style;
+  final MainAxisAlignment main_alignment;
+
+  const BracketedSelectableText({
+    required this.left,
+    required this.right,
+    required this.centre,
+    this.style,
+    this.main_alignment = MainAxisAlignment.start,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(left, style: style),
+        PaddinglessSelectableText(centre, style: style),
+        Text(right, style: style),
+      ],
+      mainAxisAlignment: main_alignment,
     );
   }
 }
